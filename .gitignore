@@ -1,0 +1,48 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+**/ephemeral/
+**/Generated.xcconfig
+**/flutter_export_environment.sh
+**/GeneratedPluginRegistrant.*
+# Android / IDE
+.gradle/
+**/local.properties
+*.iml
+.idea/
+.vscode/
+# Node / Firebase
+node_modules/
+functions/lib/
+functions/.env*
+!functions/.env.example
+functions/.secret*
+# Secrets and local data
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*service-account*.json
+*service_account*.json
+*.pem
+*.p12
+*.key
+.DS_Store
+Thumbs.db
+
+# Scratch notebooks
+lib/Untitled-*.ipynb
+
+# Secrets, signing and platform-specific local config
+android/key.properties
+ios/Runner/GoogleService-Info.plist.local
+
+# Additional generated outputs
+*.tsbuildinfo

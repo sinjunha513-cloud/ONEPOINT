@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ONEPOINT · 토스 테스트 결제</title>
+<script src="https://js.tosspayments.com/v2/standard"></script>
+<style>body{background:#0d0f12;color:#fff;font:16px system-ui;margin:0;padding:32px}main{max-width:520px;margin:70px auto}h1{font-size:28px}p{line-height:1.7;color:#b6bdca}button{background:#38bdf8;border:0;border-radius:12px;padding:18px 24px;font-weight:bold;width:100%;font-size:16px}button:disabled{opacity:.5}#error{color:#ffb86b}</style></head>
+<body><main><h1>레슨 테스트 결제</h1><p>테스트 키로만 결제합니다. 실제 금액은 청구되지 않습니다.</p><h2 id="amount"></h2><button id="pay">토스 결제창 열기</button><p id="error" role="alert"></p></main>
+<script>
+'use strict';
+const args=new URLSearchParams(location.search), button=document.getElementById('pay'), error=document.getElementById('error');
+const amount=Number(args.get('amount')), key=args.get('clientKey')||'', paymentId=args.get('paymentId'), orderId=args.get('orderId');
+document.getElementById('amount').textContent=Number.isSafeInteger(amount)?amount.toLocaleString('ko-KR')+'원':'';
+button.onclick=async()=>{
+  button.disabled=true;error.textContent='';
+  try{
+    if(!/^(test_ck_|test_gck_)/.test(key)||!Number.isSafeInteger(amount)||amount<=0||!paymentId||!orderId)throw new Error('토스 테스트 키와 결제 준비 정보를 확인해 주세요.');
+    const callback=new URL('/payment-result.html',location.origin);callback.searchParams.set('paymentId',paymentId);
+    if(args.get('mobile')==='1')callback.searchParams.set('mobile','1');
+    const payment=TossPayments(key).payment({customerKey:args.get('customerKey')});
+    await payment.requestPayment({method:'CARD',amount:{currency:'KRW',value:amount},orderId,orderName:'ONEPOINT 원포인트 레슨',successUrl:callback.href,failUrl:callback.href});
+  }catch(e){error.textContent=e?.message||'결제창을 열지 못했습니다. 다시 시도해 주세요.';button.disabled=false;}
+};
+</script></body></html>

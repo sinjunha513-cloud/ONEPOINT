@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="원포인트에서 스포츠 코치를 만나 레슨을 신청하고, 플레이 영상을 공유하고, 시그니처 뱃지를 모아 보세요.">
+  <meta name="theme-color" content="#0D0F12">
+  <meta property="og:title" content="ONEPOINT · 원포인트 레슨">
+  <meta property="og:description" content="나에게 맞는 코치와 레슨, 플레이 영상, 나만의 시그니처 뱃지.">
+  <meta property="og:type" content="website">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="ONEPOINT">
+  <link rel="apple-touch-icon" href="favicon.png">
+
+  <!-- 💡 ico 및 png 호환성 캐시 방지 적용 -->
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=3"/>
+  <link rel="icon" type="image/png" href="favicon.png?v=3"/>
+
+  <!-- 💡 브라우저 탭 이름 -->
+  <title>ONEPOINT</title>
+  <link rel="manifest" href="manifest.json">
+
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  
+  <!-- 초기 로딩 스타일 설정 -->
+  <style id="splash-screen-style">
+    html {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: #0D0F12;
+      background-size: 100% 100%;
+    }
+
+    .center {
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      -ms-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+    }
+
+    .contain {
+      display: block;
+      width: 100%; 
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .stretch {
+      display: block;
+      width: 100%; 
+      height: 100%;
+    }
+
+    .cover {
+      display: block;
+      width: 100%; 
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .bottom {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      -ms-transform: translate(-50%, 0);
+      transform: translate(-50%, 0);
+    }
+
+    .bottomLeft {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+
+    .bottomRight {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+    }
+  </style>
+
+  <script id="splash-screen-script">
+    function removeSplashFromWeb() {
+      document.getElementById("splash")?.remove();
+      document.getElementById("splash-branding")?.remove();
+      document.body.style.background = "transparent";
+    }
+  </script>
+</head>
+<body>
+  <script>
+    // Remove caches left by older Flutter Web builds before loading the app.
+    // An active legacy service worker can otherwise keep serving an obsolete
+    // main.dart.js even after Firebase Hosting has received a new release.
+    (async () => {
+      const cleanupKey = 'onepoint-web-cache-cleanup-v7';
+      let hadLegacyWorker = false;
+
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        hadLegacyWorker = registrations.length > 0 || !!navigator.serviceWorker.controller;
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+      }
+
+      if (hadLegacyWorker && !sessionStorage.getItem(cleanupKey)) {
+        sessionStorage.setItem(cleanupKey, 'done');
+        const refreshedUrl = new URL(window.location.href);
+        refreshedUrl.searchParams.set('appVersion', '20261111-reels-video-delete-v4');
+        window.location.replace(refreshedUrl.toString());
+        return;
+      }
+
+      sessionStorage.removeItem(cleanupKey);
+      const bootstrap = document.createElement('script');
+      bootstrap.src = 'flutter_bootstrap.js?v=20261111-reels-video-delete-v4';
+      bootstrap.async = true;
+      document.body.appendChild(bootstrap);
+    })();
+  </script>
+</body>
+</html>
