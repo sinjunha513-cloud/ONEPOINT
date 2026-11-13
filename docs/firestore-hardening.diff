@@ -1,0 +1,206 @@
+--- firestore.original.rules
++++ firestore.rules
+@@ -1,14 +1,18 @@
+ rules_version = '2';
+ service cloud.firestore {
+   match /databases/{database}/documents {
+-    function signedIn() { return request.auth != null &&
+-      (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+-       user(request.auth.uid).get('accountStatus', 'active') == 'active'); }
+-    function own(uid) { return signedIn() && request.auth.uid == uid; }
++    // Authentication alone is enough only for the owner's initial users write.
++    function authOwner(uid) { return request.auth != null && request.auth.uid == uid; }
++    function active() { return request.auth != null
++      && exists(/databases/$(database)/documents/users/$(request.auth.uid))
++      && user(request.auth.uid).get('accountStatus', 'active') == 'active'; }
++    function signedIn() { return active() && user(request.auth.uid).get('profileCompleted', false) == true; }
++    function own(uid) { return active() && request.auth.uid == uid; }
+     function user(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+     function admin() { return signedIn() && user(request.auth.uid).role == 'admin'; }
+     function approvedCoach(uid) {
+-      return user(uid).role == 'coach'
++      return user(uid).get('accountStatus', 'active') == 'active'
++        && user(uid).get('profileCompleted', false) == true && user(uid).role == 'coach'
+         && get(/databases/$(database)/documents/instructors/$(uid)).data.status == 'approved';
+     }
+     function shortText(value, max) { return value is string && value.size() <= max; }
+@@ -132,10 +136,11 @@
+     }
+
+     match /users/{uid} {
+-      // Individual profiles support matching and feed attribution. Bulk membership is private.
+-      allow get: if signedIn() || (request.auth != null && request.auth.uid == uid);
++      // Public display data lives in allowlisted server projections below.
++      allow get: if authOwner(uid) || admin();
+       allow list: if admin();
+-      allow create: if own(uid) && profileFields(request.resource.data)
++      allow create: if authOwner(uid) && profileFields(request.resource.data)
++        && request.resource.data.get('email', '') == request.auth.token.get('email', '')
+         && request.resource.data.keys().hasOnly([
+           'uid', 'email', 'name', 'profileImage', 'role', 'requestedRole', 'targetTier',
+           'aspirations', 'videoUrl', 'lessonCount', 'reviewScores', 'teacherMatchCount',
+@@ -150,6 +155,9 @@
+         && request.resource.data.createdAt == request.time;
+       allow update: if (own(uid) && profileFields(request.resource.data)
+           && completionAllowed(uid)
++          && (!resource.data.get('profileCompleted', false) || request.resource.data.get('profileCompleted', false))
++          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
++            || request.resource.data.email == request.auth.token.get('email', ''))
+           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'name', 'profileImage', 'targetTier', 'aspirations', 'videoUrl',
+             'email', 'requestedRole', 'profileCompleted', 'updatedAt',
+@@ -175,13 +183,13 @@
+     }
+
+     match /signature_badges/{badgeId} {
+-      allow read: if signedIn();
++      allow read: if active();
+       function validCreation() {
+         let data = request.resource.data;
+         let metaPath = /databases/$(database)/documents/signature_badge_meta/catalog;
+         let next = exists(metaPath) ? get(metaPath).data.nextSequence : 0;
+         let metaAfter = getAfter(metaPath).data;
+-        return signedIn() && user(request.auth.uid).role in ['student', 'coach']
++        return active() && user(request.auth.uid).role in ['student', 'coach']
+           && data.keys().hasOnly([
+             'name', 'normalizedName', 'colorIndex', 'sequence', 'createdBy', 'createdAt'])
+           && signatureWord(data.name)
+@@ -198,12 +206,12 @@
+     }
+
+     match /signature_badge_meta/{metaId} {
+-      allow read: if signedIn() && metaId == 'catalog';
++      allow read: if active() && metaId == 'catalog';
+       function advancesCatalog(expectedSequence) {
+         let data = request.resource.data;
+         let badgePath = /databases/$(database)/documents/signature_badges/$(data.lastBadgeId);
+         let badge = getAfter(badgePath).data;
+-        return metaId == 'catalog' && signedIn()
++        return metaId == 'catalog' && active()
+           && user(request.auth.uid).role in ['student', 'coach']
+           && data.keys().hasOnly(['nextSequence', 'lastBadgeId', 'updatedAt'])
+           && data.nextSequence == expectedSequence + 1
+@@ -219,8 +227,8 @@
+     }
+
+     match /instructors/{uid} {
+-      allow get: if own(uid) || admin() || (signedIn() && resource.data.status == 'approved');
+-      allow list: if admin() || (signedIn() && resource.data.status == 'approved');
++      allow get: if own(uid) || admin();
++      allow list: if admin();
+       function submission() {
+         let data = request.resource.data;
+         return own(uid) && user(uid).role in ['student', 'coach']
+@@ -262,13 +270,13 @@
+     match /instructors/{uid}/availability/{slotId} {
+       // Availability is written only by callable server transactions. Students
+       // may read slots only for an approved coach; pending profiles stay private.
+-      allow read: if signedIn() && (own(uid) || admin() || approvedCoach(uid));
++      allow read: if signedIn() && (own(uid) || admin());
+       allow write: if false;
+     }
+
+     match /lesson_requests/{lessonId} {
+       allow read: if signedIn() && (participant(resource.data) || resource.data.studentUid == request.auth.uid || admin());
+-      allow create: if own(request.resource.data.studentUid)
++      allow create: if signedIn() && own(request.resource.data.studentUid)
+         && user(request.auth.uid).role in ['student', 'admin']
+         && approvedCoach(request.resource.data.instructorUid)
+         && request.resource.data.keys().hasOnly([
+@@ -370,6 +378,7 @@
+         && request.resource.data.uploaderUid == request.auth.uid
+         && request.resource.data.lessonId == lessonId
+         && nonempty(request.resource.data.uploaderName, 100)
++        && request.resource.data.uploaderName == user(request.auth.uid).name
+         && shortText(request.resource.data.description, 2000)
+         && request.resource.data.storagePath.matches(
+           'lesson_feedback/' + lessonId + '/' + request.auth.uid + '/[^/]+')
+@@ -395,6 +404,17 @@
+
+     match /chat_rooms/{roomId} {
+       allow read: if participant(resource.data);
++      // A transaction may check for a missing room before creating it.
++      allow get: if signedIn() && !exists(/databases/$(database)/documents/chat_rooms/$(roomId));
++      function previewMessage() {
++        let id = request.resource.data.lastMessageId;
++        let path = /databases/$(database)/documents/chat_rooms/$(roomId)/messages/$(id);
++        let message = getAfter(path).data;
++        return id is string && !exists(path) && existsAfter(path)
++          && message.senderId == request.auth.uid && message.createdAt == request.time
++          && message.text == request.resource.data.lastMessage
++          && request.resource.data.updatedAt == request.time;
++      }
+       function roomMembers(data) {
+         return data.participantIds is list && data.participantIds.size() == 2
+           && data.participantIds.hasAll([data.studentUid, data.coachUid])
+@@ -415,8 +435,8 @@
+       allow create: if request.resource.data.keys().hasOnly(['participantIds', 'studentUid', 'studentName', 'coachUid', 'coachName'])
+         && matchingRoom(request.resource.data);
+       allow update: if participant(resource.data)
+-        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'updatedAt'])
+-            && nonempty(request.resource.data.lastMessage, 5000) && request.resource.data.updatedAt == request.time)
++        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageId', 'updatedAt'])
++            && nonempty(request.resource.data.lastMessage, 5000) && previewMessage())
+           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentName', 'coachName'])
+             && matchingRoom(request.resource.data)));
+       match /messages/{messageId} {
+@@ -424,7 +444,10 @@
+         allow create: if participant(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data)
+           && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
+           && request.resource.data.senderId == request.auth.uid
+-          && nonempty(request.resource.data.text, 5000) && request.resource.data.createdAt == request.time;
++          && nonempty(request.resource.data.text, 5000) && request.resource.data.createdAt == request.time
++          && getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)).data.lastMessageId == messageId
++          && getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)).data.lastMessage == request.resource.data.text
++          && getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)).data.updatedAt == request.time;
+       }
+     }
+
+@@ -434,10 +457,12 @@
+         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+         && videoUploadsEnabled()
+         && request.resource.data.keys().hasOnly(['userId', 'userName', 'title', 'description', 'videoUrl', 'storagePath', 'likes', 'createdAt'])
+-        && nonempty(request.resource.data.userName, 100) && nonempty(request.resource.data.title, 120)
++        && nonempty(request.resource.data.userName, 100) && request.resource.data.userName == user(request.auth.uid).name
++        && nonempty(request.resource.data.title, 120)
+         && shortText(request.resource.data.description, 2000) && nonempty(request.resource.data.videoUrl, 4000)
+         && request.resource.data.storagePath.matches('videos/[^/]+/[^/]+')
+         && request.resource.data.storagePath.split('/')[1] == request.auth.uid
++        && request.resource.data.videoUrl == request.resource.data.storagePath
+         && request.resource.data.likes == 0 && request.resource.data.createdAt == request.time;
+       function changeLikes() {
+         let delta = likeDelta(videoId);
+@@ -451,11 +476,11 @@
+       }
+       allow update: if changeLikes();
+       match /likes/{uid} {
+-        allow get: if own(uid);
++        allow get: if signedIn() && own(uid);
+         function changedVideo(delta) {
+           let video = get(/databases/$(database)/documents/feed_videos/$(videoId)).data;
+           let after = getAfter(/databases/$(database)/documents/feed_videos/$(videoId)).data;
+-          return own(uid) && video.userId != uid && after.likes == nonnegative(video.get('likes', 0) + delta);
++          return signedIn() && own(uid) && video.userId != uid && after.likes == nonnegative(video.get('likes', 0) + delta);
+         }
+         allow create: if changedVideo(1)
+           && request.resource.data.keys().hasOnly(['userId', 'createdAt'])
+@@ -472,11 +497,18 @@
+           && nonempty(request.resource.data.reportedUid, 128) && shortText(request.resource.data.details, 5000)
+           && request.resource.data.timestamp == request.time)
+         || (request.resource.data.keys().hasOnly(['reporterId', 'reporterEmail', 'reportedUserId', 'reportedUserName', 'reason', 'detail', 'sanctionType', 'status', 'createdAt'])
+-          && request.resource.data.reporterId == request.auth.uid && request.resource.data.status == 'PENDING'
++          && request.resource.data.reporterId == request.auth.uid
++          && request.resource.data.reporterEmail == request.auth.token.get('email', '')
++          && request.resource.data.status == 'PENDING'
+           && nonempty(request.resource.data.reportedUserId, 128) && shortText(request.resource.data.detail, 5000)
+           && request.resource.data.createdAt == request.time))
+         && nonempty(request.resource.data.reason, 500) && shortText(request.resource.data.reportedUserName, 100);
+     }
++    // Server projections never include email, consent, PDF references or reviewer identities.
++    match /public_users/{uid} { allow read: if signedIn(); allow write: if false; }
++    match /public_instructors/{uid} { allow read: if signedIn(); allow write: if false; }
++    match /instructors/{uid}/public_availability/{slotId} { allow read: if signedIn(); allow write: if false; }
++
+     // Financial documents are always served through authenticated callables.
+     // Even administrator clients cannot write paid/refund/fee/payout fields.
+     match /payments/{paymentId} { allow read, write: if false; }

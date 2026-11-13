@@ -69,6 +69,13 @@ void main() {
     await submit(serviceFor('applicant'));
     final admin = serviceFor('admin');
     await admin.approveInstructor('applicant');
+    // FakeFirestore does not execute Functions projection triggers.
+    // The real allowlisted projection is exercised in the Emulator suite.
+    await db.collection('public_instructors').doc('applicant').set({
+      'sport': '축구',
+      'status': 'approved',
+      'name': 'Public coach',
+    });
     expect(
         (await db.collection('users').doc('applicant').get()).data()!['role'],
         'coach');

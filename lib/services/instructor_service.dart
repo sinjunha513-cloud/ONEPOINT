@@ -50,7 +50,7 @@ class InstructorService {
     // Keep Firestore's live listener as the source of truth. The memory cache
     // only supplies an immediate first frame when this screen is opened again.
     await for (final snapshot in _db
-        .collection('instructors')
+        .collection('public_instructors')
         .where('sport', isEqualTo: sport)
         .where('status', isEqualTo: 'approved')
         .snapshots()) {

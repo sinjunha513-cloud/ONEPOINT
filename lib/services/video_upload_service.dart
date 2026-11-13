@@ -72,7 +72,7 @@ class VideoUploadService {
         'userName': name,
         'title': cleanTitle,
         'description': description.trim(),
-        'videoUrl': url,
+        'videoUrl': ref.fullPath,
         'storagePath': ref.fullPath,
         'likes': 0,
         'createdAt': FieldValue.serverTimestamp(),
@@ -222,7 +222,7 @@ class VideoUploadService {
     try {
       final snapshot = await task;
       onProgress?.call(1);
-      return await snapshot.ref.getDownloadURL();
+      return snapshot.ref.fullPath;
     } finally {
       await subscription?.cancel();
     }

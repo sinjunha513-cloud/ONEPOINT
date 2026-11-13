@@ -1,0 +1,10 @@
+{
+  "firestore.original.rules": {
+    "sha256": "deac5471c448428cbf27c80aae181737302a85ebcc9d184eb98cd943a82ba481",
+    "source": "Full rules pasted by user as current Firebase Console rules; not independently fetched from console."
+  },
+  "storage.original.rules": {
+    "sha256": "93647b44ea1ed2431b80473758b317a96ca24bcabc5aaaac149adb04248297f6",
+    "source": "Full rules pasted by user as current Firebase Console rules; not independently fetched from console."
+  }
+}

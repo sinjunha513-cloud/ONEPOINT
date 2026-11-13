@@ -30,6 +30,7 @@ class ChatService {
   Future<void> sendMessage(String roomId, String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+    if (trimmed.length > 5000) throw StateError('메시지는 5000자 이내로 입력해 주세요.');
     final room = _db.collection('chat_rooms').doc(roomId);
     final snapshot = await room.get();
     if (!snapshot.exists ||
@@ -38,13 +39,15 @@ class ChatService {
       throw StateError('참여할 수 없는 채팅방입니다.');
     }
     final batch = _db.batch();
-    batch.set(room.collection('messages').doc(), {
+    final message = room.collection('messages').doc();
+    batch.set(message, {
       'senderId': currentUid,
       'text': trimmed,
       'createdAt': FieldValue.serverTimestamp(),
     });
     batch.update(room, {
       'lastMessage': trimmed,
+      'lastMessageId': message.id,
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();

@@ -42,8 +42,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Firestore에서 실시간 유저 정보 로드
   Future<void> _loadUserData() async {
     try {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(_profileUid).get();
+      DocumentSnapshot doc = await _firestore
+          .collection(_isMyProfile ? 'users' : 'public_users')
+          .doc(_profileUid)
+          .get();
       if (!mounted) return;
       if (doc.exists) {
         setState(() {

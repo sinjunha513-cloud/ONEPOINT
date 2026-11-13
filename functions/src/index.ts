@@ -18,7 +18,7 @@ const secretOptions = {...options, secrets: [tossTestSecretKey]};
 async function authenticated(request: CallableRequest): Promise<string> {
   if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
   const member = (await db.collection("users").doc(request.auth.uid).get()).data();
-  if ((member?.accountStatus ?? "active") !== "active") throw new HttpsError("permission-denied", "정지 또는 삭제된 계정입니다.");
+  if (!member || member.profileCompleted !== true || (member.accountStatus ?? "active") !== "active") throw new HttpsError("permission-denied", "정지 또는 삭제된 계정입니다.");
   return request.auth.uid;
 }
 export function object(data: unknown, allowed: string[]): Record<string, unknown> {
@@ -122,3 +122,7 @@ export const reconcilePendingPayments = onSchedule({...secretOptions, schedule: 
     catch (error) { logger.warn("payment_reconcile_pending", {paymentId: record.id, code: error instanceof HttpsError ? error.code : "internal"}); }
   }
 });
+
+export {adminManageAccount, validateCareerPdf} from "./admin_accounts";
+export {projectUserPublicProfile, projectInstructorPublicProfile, requestLesson, requestLessonWithSlot, completeLesson, setFeedLiked, deleteVideo} from "./security_workflows";
+export {saveAvailabilitySlot, saveAvailabilitySlots, deleteAvailabilitySlot, rescheduleLesson, releaseCancelledSlot, projectPublicAvailability} from "./scheduling";

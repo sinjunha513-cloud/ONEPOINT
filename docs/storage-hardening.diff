@@ -1,0 +1,61 @@
+--- storage.original.rules
++++ storage.rules
+@@ -1,13 +1,19 @@
+ rules_version = '2';
+ service firebase.storage {
+   match /b/{bucket}/o {
+-    function active() { return request.auth != null &&
+-      (!firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) ||
+-       firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('accountStatus', 'active') == 'active'); }
+-    function admin() { return active() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
++    function active() { return request.auth != null
++      && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
++      && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('accountStatus', 'active') == 'active'; }
++    function member() { return active()
++      && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('profileCompleted', false) == true; }
++    function videoUploadsEnabled() {
++      let path = /databases/(default)/documents/app_config/features;
++      return !firestore.exists(path) || firestore.get(path).data.get('videoUploadsEnabled', true) == true;
++    }
++    function admin() { return member() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
+     function lessonParticipant(lessonId) {
+-      return active() && request.auth.uid in
+-        firestore.get(/databases/(default)/documents/lesson_requests/$(lessonId)).data.participantIds;
++      let lesson = firestore.get(/databases/(default)/documents/lesson_requests/$(lessonId)).data;
++      return member() && request.auth.uid in [lesson.studentUid, lesson.instructorUid];
+     }
+     match /coach_documents/{uid}/{filename} {
+       allow read: if active() && (request.auth.uid == uid || admin());
+@@ -19,23 +25,28 @@
+       allow update, delete: if false;
+     }
+     match /videos/{uid}/{filename} {
+-      allow read: if active();
+-      allow create, update: if active() && request.auth.uid == uid
++      allow read: if member();
++      allow create: if member() && request.auth.uid == uid
++        && resource == null && videoUploadsEnabled()
+         && request.resource.size <= 100 * 1024 * 1024
+         && request.resource.size > 0
+         && request.resource.contentType.matches('video/.*');
+-      allow delete: if active() && request.auth.uid == uid;
++      allow update: if false;
++      allow delete: if member() && request.auth.uid == uid;
+     }
+     match /lesson_feedback/{lessonId}/{uid}/{filename} {
+       allow read: if lessonParticipant(lessonId) || admin();
+       allow create: if lessonParticipant(lessonId)
+         && request.auth.uid == uid
+         && resource == null
++        && firestore.get(/databases/(default)/documents/lesson_requests/$(lessonId)).data.status in ['accepted', 'confirmed', 'completed']
++        && request.resource.metadata.get('lessonId', lessonId) == lessonId
++        && request.resource.metadata.get('uploaderUid', uid) == uid
+         && request.resource.size <= 100 * 1024 * 1024
+         && request.resource.size > 0
+         && request.resource.contentType.matches('video/.*');
+       allow update: if false;
+-      allow delete: if active() && (request.auth.uid == uid || admin());
++      allow delete: if member() && (request.auth.uid == uid || admin());
+     }
+   }
+ }

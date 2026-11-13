@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../services/storage_video_source_native.dart'
+    if (dart.library.html) '../services/storage_video_source_web.dart' as media;
 
 class VideoItemWidget extends StatefulWidget {
   final String videoUrl;
@@ -21,6 +24,8 @@ class _VideoItemWidgetState extends State<VideoItemWidget> {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
+  Future<void> Function()? _cleanup;
+  int _generation = 0;
 
   @override
   void initState() {
@@ -29,9 +34,28 @@ class _VideoItemWidgetState extends State<VideoItemWidget> {
   }
 
   Future<void> _initializePlayer() async {
+    final generation = ++_generation;
     VideoPlayerController? controller;
+    Future<void> Function()? cleanup;
     try {
-      controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      final path = widget.videoUrl;
+      if (path.startsWith('videos/') || path.startsWith('lesson_feedback/')) {
+        final bytes =
+            await FirebaseStorage.instance.ref(path).getData(100 * 1024 * 1024);
+        if (bytes == null) throw StateError('영상을 찾을 수 없습니다.');
+        final source = await media.videoSource(bytes);
+        controller = source.controller;
+        cleanup = source.cleanup;
+      } else {
+        // Existing feed URLs remain readable; private feedback always uses paths.
+        controller = VideoPlayerController.networkUrl(Uri.parse(path));
+      }
+      if (!mounted || generation != _generation) {
+        await controller.dispose();
+        await cleanup?.call();
+        return;
+      }
+      _cleanup = cleanup;
       _controller = controller;
       await controller.initialize();
       await controller.setLooping(true);
@@ -40,7 +64,7 @@ class _VideoItemWidgetState extends State<VideoItemWidget> {
       setState(() => _isInitialized = true);
       if (widget.isPlaying) controller.play();
     } catch (e) {
-      if (mounted && controller == _controller) {
+      if (mounted && generation == _generation) {
         setState(() {
           _hasError = true;
         });
@@ -52,7 +76,7 @@ class _VideoItemWidgetState extends State<VideoItemWidget> {
   void didUpdateWidget(covariant VideoItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
-      _controller?.dispose();
+      _disposePlayer();
       _isInitialized = false;
       _hasError = false;
       _initializePlayer();
@@ -67,9 +91,19 @@ class _VideoItemWidgetState extends State<VideoItemWidget> {
     }
   }
 
+  Future<void> _disposePlayer() async {
+    final controller = _controller;
+    final cleanup = _cleanup;
+    _controller = null;
+    _cleanup = null;
+    await controller?.dispose();
+    await cleanup?.call();
+  }
+
   @override
   void dispose() {
-    _controller?.dispose();
+    ++_generation;
+    _disposePlayer();
     super.dispose();
   }
 

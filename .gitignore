@@ -46,3 +46,5 @@ ios/Runner/GoogleService-Info.plist.local
 
 # Additional generated outputs
 *.tsbuildinfo
+*.log
+.firebase/

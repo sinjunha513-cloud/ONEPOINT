@@ -1,14 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 /// The complete lesson lifecycle uses the same lesson_requests documents.
 class MatchingService {
-  MatchingService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+  MatchingService(
+      {FirebaseFirestore? firestore,
+      FirebaseAuth? auth,
+      FirebaseFunctions? functions})
       : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance,
+        _functions = functions;
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  final FirebaseFunctions? _functions;
 
   String get currentUid {
     final uid = _auth.currentUser?.uid;
@@ -53,12 +59,13 @@ class MatchingService {
           (!cancelling && actor.data()?['role'] != 'coach')) {
         throw StateError('이 레슨을 변경할 권한이 없습니다.');
       }
+      final room =
+          status == 'accepted' ? await transaction.get(_chatRoom(data)) : null;
       if (data['status'] == status) {
         // Repair a legacy accepted lesson that was saved before its room was
         // created. Retrying acceptance is safe and idempotent.
-        if (status == 'accepted') {
-          transaction.set(
-              _chatRoom(data), _chatRoomData(data), SetOptions(merge: true));
+        if (status == 'accepted' && room?.exists != true) {
+          transaction.set(_chatRoom(data), _chatRoomData(data));
         }
         return;
       }
@@ -71,8 +78,9 @@ class MatchingService {
       transaction.update(
           ref, {'status': status, 'updatedAt': FieldValue.serverTimestamp()});
       if (status == 'accepted') {
-        transaction.set(
-            _chatRoom(data), _chatRoomData(data), SetOptions(merge: true));
+        if (room?.exists != true) {
+          transaction.set(_chatRoom(data), _chatRoomData(data));
+        }
       } else {
         transaction.delete(_activeRequest(data));
       }
@@ -91,103 +99,14 @@ class MatchingService {
     if (feedback.trim().length > 1000) {
       throw ArgumentError('피드백은 1000자 이내로 입력해 주세요.');
     }
-    final uid = currentUid;
-    final ref = _db.collection('lesson_requests').doc(requestId);
-    await _db.runTransaction((transaction) async {
-      final snapshot = await transaction.get(ref);
-      final coach = await transaction.get(_db.collection('users').doc(uid));
-      final data = snapshot.data();
-      if (data == null) throw StateError('레슨 신청을 찾을 수 없습니다.');
-      if (data['instructorUid'] != uid || coach.data()?['role'] != 'coach') {
-        throw StateError('담당 코치만 레슨을 완료할 수 있습니다.');
-      }
-      // A retry preserves both the review and the original attendance badge.
-      if (data['status'] == 'completed') return;
-      if (data['status'] != 'accepted') {
-        throw StateError('수락한 레슨만 완료할 수 있습니다.');
-      }
-      final studentRef =
-          _db.collection('users').doc(data['studentUid'] as String);
-      final student = await transaction.get(studentRef);
-      if (!student.exists) throw StateError('수강생 정보를 찾을 수 없습니다.');
-      final instructorRef = _db.collection('instructors').doc(uid);
-      final instructor = await transaction.get(instructorRef);
-      final providedSignature = _nonEmptyString(signatureMove);
-      final selectedBadgeId =
-          _nonEmptyString(instructor.data()?['signatureBadgeId']) ??
-              _nonEmptyString(coach.data()?['signatureBadgeId']) ??
-              _nonEmptyString(data['signatureBadgeId']);
-      final selectedBadge = selectedBadgeId == null
-          ? null
-          : await transaction
-              .get(_db.collection('signature_badges').doc(selectedBadgeId));
-      if (selectedBadgeId != null && selectedBadge?.exists != true) {
-        throw StateError('선택한 시그니처 뱃지를 전역 목록에서 다시 등록해 주세요.');
-      }
-      final awardedSignature =
-          _nonEmptyString(selectedBadge?.data()?['name']) ??
-              _nonEmptyString(instructor.data()?['signatureMove']) ??
-              _nonEmptyString(coach.data()?['signatureMove']) ??
-              _nonEmptyString(data['signatureMove']);
-      if (awardedSignature == null) {
-        throw StateError('출석 뱃지를 지급하려면 코치의 시그니처 기술을 입력해 주세요.');
-      }
-      if (providedSignature != null && providedSignature != awardedSignature) {
-        throw StateError('레슨 완료 전 마이페이지에서 사용할 시그니처 뱃지를 선택해 주세요.');
-      }
-      if (awardedSignature.length > 40) {
-        throw StateError('시그니처 기술은 40자 이내로 입력해 주세요.');
-      }
-      final selectedBadgeColorIndex =
-          (selectedBadge?.data()?['colorIndex'] as num?)?.toInt() ??
-              (instructor.data()?['signatureBadgeColorIndex'] as num?)
-                  ?.toInt() ??
-              (coach.data()?['signatureBadgeColorIndex'] as num?)?.toInt() ??
-              (data['signatureBadgeColorIndex'] as num?)?.toInt();
-      final instructorName = _nonEmptyString(data['instructorName']) ??
-          _nonEmptyString(instructor.data()?['name']) ??
-          _nonEmptyString(coach.data()?['name']) ??
-          '코치';
-      final sport = _nonEmptyString(data['sport']) ??
-          _nonEmptyString(instructor.data()?['sport']) ??
-          _nonEmptyString(coach.data()?['sport']) ??
-          '';
-      final studentData = student.data()!;
-      // Preserve separate reviews with identical scores.
-      final scores = (studentData['reviewScores'] as List<dynamic>? ?? [])
-          .whereType<num>()
-          .map((value) => value.toDouble())
-          .toList();
-      // All reads and validation precede writes so attendance and progress
-      // either commit together or leave every record intact. Badge selection
-      // is managed separately in the coach's My Page.
-      transaction.update(studentRef, {
-        'lastCompletedLessonId': requestId,
-        'lessonCount': (studentData['lessonCount'] as num? ?? 0).toInt() + 1,
-        'reviewScores': [...scores, reviewScore],
-        if (data['isInstructorInitiated'] == true)
-          'teacherMatchCount':
-              (studentData['teacherMatchCount'] as num? ?? 0).toInt() + 1,
-      });
-      transaction.update(ref, {
-        'status': 'completed',
-        'reviewScore': reviewScore,
-        'reviewFeedback': feedback.trim(),
-        'attendanceBadge': {
-          'instructorUid': uid,
-          'instructorName': instructorName,
-          'signatureMove': awardedSignature,
-          if (selectedBadgeId != null) 'signatureBadgeId': selectedBadgeId,
-          if (selectedBadgeColorIndex != null)
-            'signatureBadgeColorIndex': selectedBadgeColorIndex,
-          'sport': sport,
-          'awardedAt': FieldValue.serverTimestamp(),
-          'verifiedBy': uid,
-        },
-        'completedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      transaction.delete(_activeRequest(data));
+    await (_functions ??
+            FirebaseFunctions.instanceFor(region: 'asia-northeast3'))
+        .httpsCallable('completeLesson')
+        .call({
+      'lessonId': requestId,
+      'reviewScore': reviewScore,
+      'feedback': feedback.trim(),
+      if (signatureMove != null) 'signatureMove': signatureMove,
     });
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onepoint_lesson/screens/lesson_requests_screen.dart';
 import 'package:onepoint_lesson/services/matching_service.dart';
+import 'support/fake_functions.dart';
 
 void main() {
   late FakeFirebaseFirestore firestore;
@@ -41,6 +42,25 @@ void main() {
       home: LessonRequestsScreen(
         service: MatchingService(
           firestore: firestore,
+          functions: FakeFunctions((name, data) async {
+            expect(name, 'completeLesson');
+            // Fixed server response fixture. Domain and authorization tests run
+            // against the actual callable handlers in the Emulator suite.
+            await firestore.collection('lesson_requests').doc('lesson').update({
+              'status': 'completed',
+              'reviewScore': data['reviewScore'],
+              'reviewFeedback': data['feedback'],
+              'attendanceBadge': {
+                'signatureMove': data['signatureMove'],
+                'verifiedBy': 'coach'
+              },
+            });
+            await firestore.collection('users').doc('student').update({
+              'lessonCount': 2,
+              'reviewScores': [4.0, 4.0],
+            });
+            return {'lessonId': 'lesson', 'status': 'completed'};
+          }),
           auth: MockFirebaseAuth(
             mockUser: MockUser(uid: uid),
             signedIn: true,

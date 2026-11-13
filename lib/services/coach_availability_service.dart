@@ -25,7 +25,8 @@ class CoachAvailabilityService {
   }
 
   CollectionReference<Map<String, dynamic>> _slots(String coachUid) =>
-      _db.collection('instructors').doc(coachUid).collection('availability');
+      _db.collection('instructors').doc(coachUid).collection(
+          coachUid == currentUid ? 'availability' : 'public_availability');
 
   Stream<List<LessonSlot>> slotsForCoach(String coachUid,
       {bool availableOnly = false}) {

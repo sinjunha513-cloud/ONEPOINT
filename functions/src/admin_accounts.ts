@@ -16,7 +16,7 @@ export const adminManageAccount = onCall({region: "asia-northeast3", timeoutSeco
   const uid = input.uid, action = input.action as string, db = getFirestore(), auth = getAuth();
   const ref = db.collection("users").doc(uid);
   const actor = (await db.collection("users").doc(request.auth.uid).get()).data();
-  if (actor?.role !== "admin" || (actor.accountStatus ?? "active") !== "active") throw new HttpsError("permission-denied", "현재 관리자만 계정을 관리할 수 있습니다.");
+  if (actor?.role !== "admin" || actor.profileCompleted !== true || (actor.accountStatus ?? "active") !== "active") throw new HttpsError("permission-denied", "현재 관리자만 계정을 관리할 수 있습니다.");
   if (uid === request.auth.uid) throw new HttpsError("failed-precondition", "본인 관리자 계정은 정지하거나 삭제할 수 없습니다.");
   const target = (await ref.get()).data();
   if (!target || !["student", "coach"].includes(target.role)) throw new HttpsError("failed-precondition", "수강생 또는 코치 계정만 관리할 수 있습니다.");
@@ -32,7 +32,7 @@ export const adminManageAccount = onCall({region: "asia-northeast3", timeoutSeco
     const instructor = (await tx.get(instructorRef)).data();
     const previous = (await tx.get(operation)).data();
     if (previous?.state === "pending" && previous.leaseUntil?.toMillis() > Date.now()) throw new HttpsError("aborted", "다른 계정 처리가 진행 중입니다. 잠시 후 다시 시도해 주세요.");
-    if (administrator?.role !== "admin" || (administrator.accountStatus ?? "active") !== "active" || !member || !["student", "coach"].includes(member.role)) throw new HttpsError("permission-denied", "계정 권한이 변경되었습니다.");
+    if (administrator?.role !== "admin" || administrator.profileCompleted !== true || (administrator.accountStatus ?? "active") !== "active" || !member || !["student", "coach"].includes(member.role)) throw new HttpsError("permission-denied", "계정 권한이 변경되었습니다.");
     if (member.accountStatus === "deleting" && action !== "delete") throw new HttpsError("failed-precondition", "삭제 처리 중인 계정입니다.");
     // Block existing tokens immediately through Rules before Auth mutation.
     tx.update(ref, {accountStatus: action === "delete" ? "deleting" : action === "restore" ? "restoring" : "suspended", updatedAt: FieldValue.serverTimestamp()});

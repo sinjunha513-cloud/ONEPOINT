@@ -1,0 +1,500 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null &&
+      (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+       user(request.auth.uid).get('accountStatus', 'active') == 'active'); }
+    function own(uid) { return signedIn() && request.auth.uid == uid; }
+    function user(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    function admin() { return signedIn() && user(request.auth.uid).role == 'admin'; }
+    function approvedCoach(uid) {
+      return user(uid).role == 'coach'
+        && get(/databases/$(database)/documents/instructors/$(uid)).data.status == 'approved';
+    }
+    function shortText(value, max) { return value is string && value.size() <= max; }
+    function nonempty(value, max) { return shortText(value, max) && value.size() > 0; }
+    function signatureWord(value) {
+      return value is string && value.matches('^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]{1,20}$');
+    }
+    function validSignatureSelection(data) {
+      let rawId = data.get('signatureBadgeId', '');
+      let id = rawId is string && rawId.size() > 0 ? rawId : '__invalid__';
+      let path = /databases/$(database)/documents/signature_badges/$(id);
+      return rawId is string && rawId.matches('^[가-힣ㄱ-ㅎㅏ-ㅣa-z0-9]{1,20}$')
+        && exists(path) && signatureWord(data.get('signatureMove', ''))
+        && data.signatureMove == get(path).data.name
+        && data.get('signatureBadgeColorIndex', -1) == get(path).data.colorIndex;
+    }
+    function validOptionalSignatureSelection(data) {
+      return !data.keys().hasAny(['signatureMove', 'signatureBadgeId', 'signatureBadgeColorIndex'])
+        || validSignatureSelection(data);
+    }
+    function pairKey(data) { return data.instructorUid + '_' + data.studentUid; }
+    function newPair(data, lessonId) {
+      let pair = /databases/$(database)/documents/active_lesson_requests/$(pairKey(data));
+      return !exists(pair) && existsAfter(pair)
+        && getAfter(pair).data.requestId == lessonId;
+    }
+    function members(data) {
+      return data.participantIds is list && data.participantIds.size() == 2
+        && data.participantIds.hasAll([data.studentUid, data.instructorUid])
+        && data.studentUid != data.instructorUid;
+    }
+    function participant(data) {
+      return signedIn() && request.auth.uid in data.participantIds;
+    }
+    function profileFields(data) {
+      return shortText(data.name, 100)
+        && shortText(data.get('profileImage', ''), 800000)
+        && shortText(data.get('targetTier', ''), 50)
+        && shortText(data.get('aspirations', ''), 5000)
+        && shortText(data.get('videoUrl', ''), 4000)
+        && shortText(data.get('email', ''), 320)
+        && data.get('requestedRole', 'student') in ['student', 'coach']
+        && data.get('profileCompleted', false) is bool;
+    }
+    function completionAllowed(uid) {
+      let data = request.resource.data;
+      return data.get('profileCompleted', false) != true
+        || resource.data.get('profileCompleted', false) == true
+        || (nonempty(data.name, 100)
+          && data.get('termsAccepted', false) == true
+          && data.get('privacyAccepted', false) == true
+          && data.get('consentVersion', '') == '2026-10-08-v1'
+          && data.consentedAt is timestamp
+          && data.get('requestedRole', '') in ['student', 'coach']
+          && (data.requestedRole == 'student' || completeCoach(uid)));
+    }
+    function completeCoach(uid) {
+      let data = getAfter(/databases/$(database)/documents/instructors/$(uid)).data;
+      return nonempty(data.name, 100) && (nonempty(data.career, 5000) || careerPdf(uid, data))
+        && data.sport in ['축구', '농구', '테니스', '배드민턴', '클라이밍', '수영', '골프', '복싱', '유도', '주짓수', '태권도', '필라테스', '요가', '탁구', '댄스', '크로스핏', '피겨', '스키', '헬스']
+        && data.get('lessonLevel', '초급 환영') in ['초급 환영', '초중급 환영', '중급 환영', '중고급 환영', '고급 환영']
+        && validSignatureSelection(data);
+    }
+    function careerPdf(uid, data) {
+      let id = data.get('careerPdfId', '');
+      return id is string && id.matches('[A-Za-z0-9_-]{1,100}')
+        && exists(/databases/$(database)/documents/coach_document_uploads/$(uid)/files/$(id))
+        && get(/databases/$(database)/documents/coach_document_uploads/$(uid)/files/$(id)).data.verified == true;
+    }
+    function studentProgress(uid) {
+      let data = request.resource.data;
+      let lessonId = data.lastCompletedLessonId;
+      let before = get(/databases/$(database)/documents/lesson_requests/$(lessonId)).data;
+      let after = getAfter(/databases/$(database)/documents/lesson_requests/$(lessonId)).data;
+      return signedIn() && before.studentUid == uid && before.instructorUid == request.auth.uid
+        && approvedCoach(request.auth.uid)
+        && before.status == 'accepted' && after.status == 'completed'
+        && !before.keys().hasAny(['price', 'paymentId'])
+        && before.get('paymentRequired', false) != true
+        && after.completedAt == request.time
+        && data.diff(resource.data).affectedKeys().hasOnly([
+          'lessonCount', 'reviewScores', 'teacherMatchCount', 'lastCompletedLessonId'])
+        && data.lessonCount == resource.data.get('lessonCount', 0) + 1
+        && data.reviewScores == resource.data.get('reviewScores', []).concat([after.reviewScore])
+        && data.get('teacherMatchCount', 0) == resource.data.get('teacherMatchCount', 0)
+          + (before.get('isInstructorInitiated', false) ? 1 : 0);
+    }
+    function likeDelta(videoId) {
+      let path = /databases/$(database)/documents/feed_videos/$(videoId)/likes/$(request.auth.uid);
+      return !exists(path) && existsAfter(path) ? 1
+        : (exists(path) && !existsAfter(path) ? -1 : 0);
+    }
+    function nonnegative(value) { return value < 0 ? 0 : value; }
+    function signatureColor(sequence) {
+      let slot = sequence % 30;
+      return slot == 0 ? 7 : slot == 1 ? 19 : slot == 2 ? 2
+        : slot == 3 ? 25 : slot == 4 ? 11 : slot == 5 ? 0
+        : slot == 6 ? 16 : slot == 7 ? 28 : slot == 8 ? 5
+        : slot == 9 ? 22 : slot == 10 ? 13 : slot == 11 ? 3
+        : slot == 12 ? 27 : slot == 13 ? 9 : slot == 14 ? 18
+        : slot == 15 ? 1 : slot == 16 ? 24 : slot == 17 ? 14
+        : slot == 18 ? 6 : slot == 19 ? 29 : slot == 20 ? 10
+        : slot == 21 ? 21 : slot == 22 ? 4 : slot == 23 ? 17
+        : slot == 24 ? 26 : slot == 25 ? 8 : slot == 26 ? 20
+        : slot == 27 ? 12 : slot == 28 ? 23 : 15;
+    }
+    function authorLikes(uid) {
+      let videoId = request.resource.data.lastFeedLikeVideoId;
+      let video = get(/databases/$(database)/documents/feed_videos/$(videoId)).data;
+      let after = getAfter(/databases/$(database)/documents/feed_videos/$(videoId)).data;
+      let delta = likeDelta(videoId);
+      return signedIn() && !own(uid) && video.userId == uid && delta != 0
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['feedLikeCount', 'lastFeedLikeVideoId'])
+        && request.resource.data.feedLikeCount == nonnegative(resource.data.get('feedLikeCount', 0) + delta)
+        && after.likes == nonnegative(video.get('likes', 0) + delta);
+    }
+    function videoUploadsEnabled() {
+      let path = /databases/$(database)/documents/app_config/features;
+      return !exists(path) || get(path).data.get('videoUploadsEnabled', true) == true;
+    }
+
+    match /users/{uid} {
+      // Individual profiles support matching and feed attribution. Bulk membership is private.
+      allow get: if signedIn() || (request.auth != null && request.auth.uid == uid);
+      allow list: if admin();
+      allow create: if own(uid) && profileFields(request.resource.data)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'profileImage', 'role', 'requestedRole', 'targetTier',
+          'aspirations', 'videoUrl', 'lessonCount', 'reviewScores', 'teacherMatchCount',
+          'feedLikeCount', 'profileCompleted', 'createdAt', 'updatedAt'])
+        && request.resource.data.get('uid', uid) == uid
+        && request.resource.data.role == 'student'
+        && request.resource.data.profileCompleted == false
+        && request.resource.data.lessonCount == 0
+        && request.resource.data.reviewScores == []
+        && request.resource.data.teacherMatchCount == 0
+        && request.resource.data.feedLikeCount == 0
+        && request.resource.data.createdAt == request.time;
+      allow update: if (own(uid) && profileFields(request.resource.data)
+          && completionAllowed(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'profileImage', 'targetTier', 'aspirations', 'videoUrl',
+            'email', 'requestedRole', 'profileCompleted', 'updatedAt',
+            'termsAccepted', 'privacyAccepted', 'consentVersion', 'consentedAt'])
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'termsAccepted', 'privacyAccepted', 'consentVersion', 'consentedAt'])
+            || (request.resource.data.termsAccepted == true
+              && request.resource.data.privacyAccepted == true
+              && request.resource.data.consentVersion == '2026-10-08-v1'
+              && request.resource.data.consentedAt == request.time))
+          && request.resource.data.updatedAt == request.time)
+        || (own(uid) && approvedCoach(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'signatureMove', 'signatureBadgeId', 'signatureBadgeColorIndex', 'updatedAt'])
+          && validSignatureSelection(request.resource.data)
+          && request.resource.data.updatedAt == request.time)
+        || (admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'updatedAt'])
+          && resource.data.get('accountStatus', 'active') == 'active'
+          && request.resource.data.role in ['student', 'coach', 'admin']
+          && (!own(uid) || request.resource.data.role == 'admin')
+          && request.resource.data.updatedAt == request.time)
+        || studentProgress(uid) || authorLikes(uid);
+    }
+
+    match /signature_badges/{badgeId} {
+      allow read: if signedIn();
+      function validCreation() {
+        let data = request.resource.data;
+        let metaPath = /databases/$(database)/documents/signature_badge_meta/catalog;
+        let next = exists(metaPath) ? get(metaPath).data.nextSequence : 0;
+        let metaAfter = getAfter(metaPath).data;
+        return signedIn() && user(request.auth.uid).role in ['student', 'coach']
+          && data.keys().hasOnly([
+            'name', 'normalizedName', 'colorIndex', 'sequence', 'createdBy', 'createdAt'])
+          && signatureWord(data.name)
+          && data.normalizedName == badgeId
+          && badgeId.matches('^[가-힣ㄱ-ㅎㅏ-ㅣa-z0-9]{1,20}$')
+          && data.sequence is int && data.sequence == next
+          && data.colorIndex is int && data.colorIndex == signatureColor(data.sequence)
+          && data.createdBy == request.auth.uid && data.createdAt == request.time
+          && metaAfter.nextSequence == next + 1
+          && metaAfter.lastBadgeId == badgeId && metaAfter.updatedAt == request.time;
+      }
+      allow create: if validCreation();
+      // Global names, sequence numbers, and colors are immutable.
+    }
+
+    match /signature_badge_meta/{metaId} {
+      allow read: if signedIn() && metaId == 'catalog';
+      function advancesCatalog(expectedSequence) {
+        let data = request.resource.data;
+        let badgePath = /databases/$(database)/documents/signature_badges/$(data.lastBadgeId);
+        let badge = getAfter(badgePath).data;
+        return metaId == 'catalog' && signedIn()
+          && user(request.auth.uid).role in ['student', 'coach']
+          && data.keys().hasOnly(['nextSequence', 'lastBadgeId', 'updatedAt'])
+          && data.nextSequence == expectedSequence + 1
+          && data.lastBadgeId is string && data.updatedAt == request.time
+          && !exists(badgePath) && existsAfter(badgePath)
+          && badge.sequence == expectedSequence
+          && badge.createdBy == request.auth.uid && badge.createdAt == request.time;
+      }
+      allow create: if advancesCatalog(0);
+      allow update: if advancesCatalog(resource.data.nextSequence)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['nextSequence', 'lastBadgeId', 'updatedAt']);
+    }
+
+    match /instructors/{uid} {
+      allow get: if own(uid) || admin() || (signedIn() && resource.data.status == 'approved');
+      allow list: if admin() || (signedIn() && resource.data.status == 'approved');
+      function submission() {
+        let data = request.resource.data;
+        return own(uid) && user(uid).role in ['student', 'coach']
+          && data.uid == uid && data.userId == uid && data.status == 'pending'
+          && nonempty(data.name, 100) && shortText(data.career, 5000)
+          && (nonempty(data.career, 5000) || careerPdf(uid, data))
+          && (!data.keys().hasAny(['careerPdfId']) || careerPdf(uid, data))
+          && data.sport in ['축구', '농구', '테니스', '배드민턴', '클라이밍', '수영', '골프', '복싱', '유도', '주짓수', '태권도', '필라테스', '요가', '탁구', '댄스', '크로스핏', '피겨', '스키', '헬스']
+          && data.get('lessonLevel', '초급 환영') in ['초급 환영', '초중급 환영', '중급 환영', '중고급 환영', '고급 환영']
+          && validOptionalSignatureSelection(data)
+          && data.submittedAt == request.time && data.updatedAt == request.time;
+      }
+      allow create: if submission() && request.resource.data.keys().hasOnly([
+          'uid', 'userId', 'name', 'sport', 'lessonLevel', 'career', 'signatureMove',
+          'signatureBadgeId', 'signatureBadgeColorIndex', 'status',
+          'submittedAt', 'updatedAt', 'rating', 'createdAt', 'careerPdfId'])
+        && request.resource.data.rating == '0.0' && request.resource.data.createdAt == request.time;
+      allow update: if (submission()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'uid', 'userId', 'name', 'sport', 'lessonLevel', 'career', 'signatureMove',
+            'signatureBadgeId', 'signatureBadgeColorIndex', 'status',
+            'submittedAt', 'updatedAt', 'approvedAt', 'reviewedAt', 'reviewedBy', 'careerPdfId'])
+          && !request.resource.data.keys().hasAny(['approvedAt', 'reviewedAt', 'reviewedBy']))
+        || (own(uid) && approvedCoach(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'signatureMove', 'signatureBadgeId', 'signatureBadgeColorIndex', 'updatedAt'])
+          && validSignatureSelection(request.resource.data)
+          && request.resource.data.updatedAt == request.time)
+        || (admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'reviewedAt', 'reviewedBy', 'updatedAt', 'approvedAt'])
+          && request.resource.data.status in ['approved', 'rejected']
+          && request.resource.data.reviewedBy == request.auth.uid
+          && request.resource.data.reviewedAt == request.time && request.resource.data.updatedAt == request.time
+          && (request.resource.data.status == 'rejected'
+            || (resource.data.status == 'pending' && request.resource.data.approvedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)).data.role == 'coach')));
+    }
+
+    match /instructors/{uid}/availability/{slotId} {
+      // Availability is written only by callable server transactions. Students
+      // may read slots only for an approved coach; pending profiles stay private.
+      allow read: if signedIn() && (own(uid) || admin() || approvedCoach(uid));
+      allow write: if false;
+    }
+
+    match /lesson_requests/{lessonId} {
+      allow read: if signedIn() && (participant(resource.data) || resource.data.studentUid == request.auth.uid || admin());
+      allow create: if own(request.resource.data.studentUid)
+        && user(request.auth.uid).role in ['student', 'admin']
+        && approvedCoach(request.resource.data.instructorUid)
+        && request.resource.data.keys().hasOnly([
+          'instructorId', 'instructorUid', 'instructorName', 'sport', 'signatureMove',
+          'signatureBadgeId', 'signatureBadgeColorIndex',
+          'studentUid', 'studentName', 'participantIds', 'status', 'isInstructorInitiated', 'createdAt', 'paymentRequired'])
+        && request.resource.data.get('paymentRequired', false) is bool
+        && request.resource.data.instructorId == request.resource.data.instructorUid
+        && request.resource.data.studentName == user(request.auth.uid).name
+        && request.resource.data.instructorName == get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.name
+        && request.resource.data.sport == get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.sport
+        && request.resource.data.sport in ['축구', '농구', '테니스', '배드민턴', '클라이밍', '수영', '골프', '복싱', '유도', '주짓수', '태권도', '필라테스', '요가', '탁구', '댄스', '크로스핏', '피겨', '스키', '헬스']
+        && request.resource.data.get('signatureMove', '') ==
+          get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.get('signatureMove', '')
+        && ((!request.resource.data.keys().hasAny(['signatureBadgeId', 'signatureBadgeColorIndex'])
+              && !get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.keys()
+                .hasAny(['signatureBadgeId', 'signatureBadgeColorIndex']))
+          || (validSignatureSelection(request.resource.data)
+            && request.resource.data.signatureBadgeId ==
+              get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.signatureBadgeId))
+        && members(request.resource.data) && request.resource.data.status == 'pending'
+        && request.resource.data.isInstructorInitiated == false
+        && request.resource.data.createdAt == request.time
+        && newPair(request.resource.data, lessonId);
+      function closedPair() {
+        return !existsAfter(/databases/$(database)/documents/active_lesson_requests/$(pairKey(resource.data)));
+      }
+      function acceptedRoom(data) {
+        let roomPath = /databases/$(database)/documents/chat_rooms/$(data.participantIds[0] + '_' + data.participantIds[1]);
+        let room = getAfter(roomPath).data;
+        return existsAfter(roomPath)
+          && room.participantIds == data.participantIds
+          && room.studentUid == data.studentUid
+          && room.studentName == data.studentName
+          && room.coachUid == data.instructorUid
+          && room.coachName == data.instructorName;
+      }
+      function statusChange() {
+        let data = request.resource.data;
+        return resource.data.status == 'pending'
+          && data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && data.updatedAt == request.time
+          && ((own(resource.data.studentUid) && data.status == 'cancelled' && closedPair())
+            || (own(resource.data.instructorUid) && approvedCoach(request.auth.uid)
+              && ((data.status == 'accepted'
+                    && resource.data.get('paymentRequired', false) != true
+                    && acceptedRoom(data))
+                || (data.status == 'rejected' && closedPair()))));
+      }
+      function completion() {
+        let data = request.resource.data;
+        let badge = data.attendanceBadge;
+        let studentAfter = getAfter(/databases/$(database)/documents/users/$(resource.data.studentUid)).data;
+        return own(resource.data.instructorUid) && approvedCoach(request.auth.uid)
+          && resource.data.status == 'accepted' && data.status == 'completed'
+          && !resource.data.keys().hasAny(['price', 'paymentId'])
+          && resource.data.get('paymentRequired', false) != true
+          && data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'reviewScore', 'reviewFeedback', 'attendanceBadge', 'completedAt', 'updatedAt'])
+          && data.reviewScore is number && data.reviewScore >= 1 && data.reviewScore <= 5
+          && shortText(data.reviewFeedback, 1000)
+          && data.completedAt == request.time && data.updatedAt == request.time
+          && badge.keys().hasOnly([
+            'instructorUid', 'instructorName', 'signatureMove', 'signatureBadgeId',
+            'signatureBadgeColorIndex', 'sport', 'awardedAt', 'verifiedBy'])
+          && badge.instructorUid == resource.data.instructorUid && badge.verifiedBy == request.auth.uid
+          && badge.instructorName == resource.data.instructorName && badge.sport == resource.data.sport
+          && ((badge.keys().hasAll(['signatureBadgeId', 'signatureBadgeColorIndex'])
+                && validSignatureSelection(badge))
+              || (!badge.keys().hasAny(['signatureBadgeId', 'signatureBadgeColorIndex'])
+                && nonempty(badge.signatureMove, 40)))
+          && badge.awardedAt == request.time
+          && studentAfter.lastCompletedLessonId == lessonId
+          && studentAfter.lessonCount == user(resource.data.studentUid).get('lessonCount', 0) + 1
+          && closedPair();
+      }
+      allow update: if statusChange() || completion();
+      // Completed badges are immutable, including for administrators.
+    }
+
+    match /lesson_requests/{lessonId}/schedule_changes/{changeId} {
+      function parentLesson() {
+        return get(/databases/$(database)/documents/lesson_requests/$(lessonId)).data;
+      }
+      allow read: if signedIn() && (participant(parentLesson()) || admin());
+      allow write: if false;
+    }
+
+    match /lesson_requests/{lessonId}/feedback_videos/{videoId} {
+      function parentLesson() {
+        return get(/databases/$(database)/documents/lesson_requests/$(lessonId)).data;
+      }
+      allow read: if signedIn() && (participant(parentLesson()) || admin());
+      allow create: if participant(parentLesson())
+        && parentLesson().status in ['accepted', 'confirmed', 'completed']
+        && request.resource.data.keys().hasOnly([
+          'uploaderUid', 'uploaderName', 'lessonId', 'storagePath',
+          'description', 'createdAt'])
+        && request.resource.data.uploaderUid == request.auth.uid
+        && request.resource.data.lessonId == lessonId
+        && nonempty(request.resource.data.uploaderName, 100)
+        && shortText(request.resource.data.description, 2000)
+        && request.resource.data.storagePath.matches(
+          'lesson_feedback/' + lessonId + '/' + request.auth.uid + '/[^/]+')
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /active_lesson_requests/{pairId} {
+      // Missing pair reads are required for transactional first requests.
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/active_lesson_requests/$(pairId)) || participant(resource.data) || admin());
+      allow list: if admin() || participant(resource.data);
+      function newRequest() {
+        let path = /databases/$(database)/documents/lesson_requests/$(request.resource.data.requestId);
+        let lesson = getAfter(path).data;
+        return !exists(path) && pairId == pairKey(lesson)
+          && lesson.status == 'pending' && lesson.participantIds == request.resource.data.participantIds;
+      }
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['requestId', 'participantIds'])
+        && participant(request.resource.data) && newRequest();
+      allow delete: if participant(resource.data)
+        && getAfter(/databases/$(database)/documents/lesson_requests/$(resource.data.requestId)).data.status in ['cancelled', 'rejected', 'completed'];
+    }
+
+    match /chat_rooms/{roomId} {
+      allow read: if participant(resource.data);
+      function roomMembers(data) {
+        return data.participantIds is list && data.participantIds.size() == 2
+          && data.participantIds.hasAll([data.studentUid, data.coachUid])
+          && data.studentUid != data.coachUid;
+      }
+      function matchingRoom(data) {
+        let first = /databases/$(database)/documents/active_lesson_requests/$(data.studentUid + '_' + data.coachUid);
+        let second = /databases/$(database)/documents/active_lesson_requests/$(data.coachUid + '_' + data.studentUid);
+        let pair = existsAfter(first) ? getAfter(first).data : getAfter(second).data;
+        let lesson = getAfter(/databases/$(database)/documents/lesson_requests/$(pair.requestId)).data;
+        return (own(data.studentUid) || own(data.coachUid)) && roomMembers(data)
+          && roomId == data.participantIds[0] + '_' + data.participantIds[1]
+          && lesson.studentUid == data.studentUid && lesson.instructorUid == data.coachUid
+          && lesson.studentName == data.studentName && lesson.instructorName == data.coachName
+          && lesson.participantIds == data.participantIds
+          && lesson.status == 'accepted';
+      }
+      allow create: if request.resource.data.keys().hasOnly(['participantIds', 'studentUid', 'studentName', 'coachUid', 'coachName'])
+        && matchingRoom(request.resource.data);
+      allow update: if participant(resource.data)
+        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'updatedAt'])
+            && nonempty(request.resource.data.lastMessage, 5000) && request.resource.data.updatedAt == request.time)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentName', 'coachName'])
+            && matchingRoom(request.resource.data)));
+      match /messages/{messageId} {
+        allow read: if participant(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data);
+        allow create: if participant(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data)
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && nonempty(request.resource.data.text, 5000) && request.resource.data.createdAt == request.time;
+      }
+    }
+
+    match /feed_videos/{videoId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && videoUploadsEnabled()
+        && request.resource.data.keys().hasOnly(['userId', 'userName', 'title', 'description', 'videoUrl', 'storagePath', 'likes', 'createdAt'])
+        && nonempty(request.resource.data.userName, 100) && nonempty(request.resource.data.title, 120)
+        && shortText(request.resource.data.description, 2000) && nonempty(request.resource.data.videoUrl, 4000)
+        && request.resource.data.storagePath.matches('videos/[^/]+/[^/]+')
+        && request.resource.data.storagePath.split('/')[1] == request.auth.uid
+        && request.resource.data.likes == 0 && request.resource.data.createdAt == request.time;
+      function changeLikes() {
+        let delta = likeDelta(videoId);
+        let before = user(resource.data.userId);
+        let after = getAfter(/databases/$(database)/documents/users/$(resource.data.userId)).data;
+        return signedIn() && request.auth.uid != resource.data.userId && delta != 0
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+          && request.resource.data.likes == nonnegative(resource.data.get('likes', 0) + delta)
+          && after.lastFeedLikeVideoId == videoId
+          && after.feedLikeCount == nonnegative(before.get('feedLikeCount', 0) + delta);
+      }
+      allow update: if changeLikes();
+      match /likes/{uid} {
+        allow get: if own(uid);
+        function changedVideo(delta) {
+          let video = get(/databases/$(database)/documents/feed_videos/$(videoId)).data;
+          let after = getAfter(/databases/$(database)/documents/feed_videos/$(videoId)).data;
+          return own(uid) && video.userId != uid && after.likes == nonnegative(video.get('likes', 0) + delta);
+        }
+        allow create: if changedVideo(1)
+          && request.resource.data.keys().hasOnly(['userId', 'createdAt'])
+          && request.resource.data.userId == uid && request.resource.data.createdAt == request.time;
+        allow delete: if changedVideo(-1);
+      }
+    }
+
+    match /reports/{reportId} {
+      allow read: if admin();
+      allow create: if signedIn() && (
+        (request.resource.data.keys().hasOnly(['reporterUid', 'reportedUid', 'reportedUserName', 'reason', 'details', 'timestamp', 'status'])
+          && request.resource.data.reporterUid == request.auth.uid && request.resource.data.status == 'pending'
+          && nonempty(request.resource.data.reportedUid, 128) && shortText(request.resource.data.details, 5000)
+          && request.resource.data.timestamp == request.time)
+        || (request.resource.data.keys().hasOnly(['reporterId', 'reporterEmail', 'reportedUserId', 'reportedUserName', 'reason', 'detail', 'sanctionType', 'status', 'createdAt'])
+          && request.resource.data.reporterId == request.auth.uid && request.resource.data.status == 'PENDING'
+          && nonempty(request.resource.data.reportedUserId, 128) && shortText(request.resource.data.detail, 5000)
+          && request.resource.data.createdAt == request.time))
+        && nonempty(request.resource.data.reason, 500) && shortText(request.resource.data.reportedUserName, 100);
+    }
+    // Financial documents are always served through authenticated callables.
+    // Even administrator clients cannot write paid/refund/fee/payout fields.
+    match /payments/{paymentId} { allow read, write: if false; }
+    match /payments/{paymentId}/refunds/{refundId} { allow read, write: if false; }
+    match /payment_gateway_records/{id} { allow read, write: if false; }
+    match /refund_requests/{id} { allow read, write: if false; }
+    match /payment_stats/{id} { allow read, write: if false; }
+    match /demo_gateway_payments/{id} { allow read, write: if false; }
+    match /demo_gateway_operations/{id} { allow read, write: if false; }
+    match /account_admin_operations/{uid} { allow read: if admin(); allow write: if false; }
+    match /coach_document_uploads/{uid}/files/{fileId} { allow read: if own(uid) || admin(); allow write: if false; }
+    match /app_config/features {
+      allow get: if signedIn();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasOnly([
+          'videoUploadsEnabled', 'paymentTestEnabled'])
+        && request.resource.data.videoUploadsEnabled is bool
+        && request.resource.data.get('paymentTestEnabled', false) is bool;
+    }
+  }
+}

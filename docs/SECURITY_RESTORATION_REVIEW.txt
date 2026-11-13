@@ -1,0 +1,246 @@
+ONEPOINT Firebase 원본 규칙 복원 및 보안 개선 보고서
+작성일: 2026-11-13 (Asia/Seoul)
+
+이 보고서가 현재 검토 결과다. SECURITY_REVIEW.txt는 이전 Codex 작업의 역사적 기록이다.
+이전 작업을 운영 원본으로 취급하지 않고, 사용자가 제공한 전체 원본에 변경을 다시 적용했다.
+운영 Firebase 배포, 기존 Firestore 데이터 변경, 기존 Storage 파일 삭제는 실행하지 않았다.
+아래 테스트에서 생성·변경·삭제한 데이터와 파일은 demo 프로젝트의 로컬 Emulator 자료뿐이다.
+
+1. 현재 확인한 파일과 원본 확보 여부
+
+- firestore.original.rules: 사용자가 실제 콘솔 규칙이라고 제공한 Firestore 전체 본문.
+- storage.original.rules: 사용자가 실제 콘솔 규칙이라고 제공한 Storage 전체 본문.
+- firestore.rules, storage.rules: 위 원본을 기준으로 제한적으로 변경한 수정안.
+- docs/firestore-hardening.diff, docs/storage-hardening.diff: 원본 대비 전체 변경 내역.
+- docs/rules-origin.json: 원본의 출처 설명과 SHA-256. 테스트 시작 시 해시를 검증한다.
+- firebase.json: 로컬 Emulator 및 수정 규칙 경로 설정. 배포하지 않았다.
+
+원본을 받기 전에는 두 *.original.rules가 없었고 Git 이력에도 없음을 확인했다.
+이후 사용자의 전체 본문을 별도 파일로 보존했다. 'storage 규칙', 'firebase 규칙' 같은
+규칙 외 설명을 제외하고 규칙 본문을 저장했다. 원본 파일에는 보안 수정을 적용하지 않았다.
+Firebase 콘솔에 직접 접속하여 현재 배포 버전과 동일한지 독립적으로 확인한 것은 아니다.
+
+2. 이전 작업 보존과 재작업 방법
+
+이전 Codex 변경 29개 파일, HEAD, git status, binary diff, 파일별 SHA-256을 아래 ZIP으로 보존했다.
+압축 무결성과 각 파일의 해시를 다시 읽어 검증했다. 초기화나 일괄 git restore는 하지 않았다.
+
+.security-review-backups/previous-codex-20261113T113949Z.zip
+
+이 경로는 .git/info/exclude에만 로컬 제외로 등록했다. 운영 자료나 비밀 설정은 백업에 넣지 않았다.
+원본의 Firestore 함수 38개(동일 이름의 범위별 함수 포함)를 모두 유지했다.
+기존 profileFields/completionAllowed/completeCoach/careerPdf, 배지 색상·순번,
+newPair/acceptedRoom/closedPair/studentProgress, likeDelta/authorLikes/changeLikes,
+신고 형식 2종, 명시적 결제 차단과 관리자 제한 조건을 보존했다.
+
+이전 생성안과 원본을 비교해 발견하고 바로잡은 정책 차이:
+- 기존 5,000자 메시지 제한을 4,000자로 축소했던 부분: 5,000자로 복원.
+- 관리자 app_config/features 생성·수정 및 불리언 검증 누락: 원본대로 복원.
+- videoUploadsEnabled 누락: Firestore 검증을 복원하고 Storage 업로드에도 적용.
+- account_admin_operations 관리자 읽기 누락: 원본대로 복원. 쓰기 금지는 유지.
+- 피드백의 관리자 조회 및 Storage 삭제 권한 누락: 원본대로 복원.
+- 신고 형식 2종을 1종으로 제한하고 세부 글자 수를 축소한 부분: 원본 범위로 복원.
+- PDF 파일명을 pdf_ 접두어로 제한한 부분: 영문/숫자/_/- 1~100자 ID 범위로 복원.
+- video MIME/파일명을 4개 확장자로 한정한 부분: 원본 video/.* 정책으로 복원.
+- 관리자 심사 필드 범위, 관리자 자기 강등 금지, 정지 대상 역할 변경 금지,
+  배지 검증과 레슨·통계·채팅방 연동을 생략/완화한 부분: 원본 조건으로 복원.
+- 서버 완료 함수에 빠져 있던 승인 코치 및 price/paymentId 배제: 원본 조건에 맞게 보완.
+
+3. 원본에서 확인한 취약점과 수정 내용
+
+회원 정보 및 가입 단계
+- 원본 signedIn/active는 users 문서가 없더라도 참이 되는 분기가 있었다.
+  현재 active는 문서 존재와 활성 상태를 요구한다. signedIn은 가입 완료도 요구한다.
+- 인증만 완료한 사용자는 본인의 최초 users 생성/본인 상태 조회만 가능하다.
+- users가 있는 미완성 활성 가입자는 본인 프로필, 코치 신청, PDF, 전역 배지를 이용할 수 있다.
+  일반 피드/레슨/채팅/영상에는 가입 완료가 필요하다.
+- 정지 계정은 본인 users 문서를 읽어 상태 감시와 로그아웃 처리를 유지한다.
+- 원본은 모든 signedIn 사용자에게 타인 users 전체를 허용했다.
+  수정안은 본인/관리자만 읽도록 제한하고 일반 목록 조회는 계속 금지한다.
+- 공개 users/instructors/availability를 별도 서버 투영으로 제공한다.
+  이메일·동의·PDF 참조·심사 담당자·예약 참여자 정보는 공개 투영에서 제외한다.
+- 자신의 role/accountStatus/관리자 필드 임의 변경 차단은 유지한다.
+- 최초 이메일 및 이메일 변경은 인증 토큰과 일치해야 한다.
+- 완료된 프로필을 false로 되돌려 가입 단계 제한을 우회하지 못하게 했다.
+
+레슨과 좋아요
+- 원본의 클라이언트 트랜잭션 정책은 삭제하지 않았다.
+  신청+활성 쌍, 수락+채팅방, 완료+출석 배지+통계+쌍 해제,
+  좋아요+영상 수+작성자 통계의 원자성 조건을 유지하고 실제로 검사했다.
+- 앱에서는 타인의 비공개 users를 읽지 않고도 기능을 유지하도록 이전 작업의 서버 호출을 유지한다.
+  서버 함수도 승인 코치·활성 계정·가입 완료·중복 방지·가격 필드 배제 조건을 확인한다.
+- 원본의 결제 필요/price/paymentId 레슨은 일반 완료 경로로 처리할 수 없다.
+- 일정 관리는 서버 전용을 유지한다. 참여자 일정 변경과 이력, 슬롯 잠금을 테스트했다.
+- 원본 승인 코치 조건을 유지하므로 승인 정보가 사라진 코치의 완료를 허용하지 않는다.
+  레거시 시그니처 fallback은 승인된 코치라는 조건 안에서만 유지한다.
+
+채팅
+- 원본은 lastMessage 단독 변경과 메시지 생성 간 연동이 없었다.
+- lastMessageId를 추가하고 새 메시지/발신자/서버 시각/본문/방 요약을 같은 배치로 검증한다.
+- 메시지 없는 요약, 기존 메시지 재사용, 요약 없는 메시지, 발신자 위조는 거부한다.
+- 원본의 active pair 및 수락 레슨을 통한 방 생성 조건과 표시 이름 검증은 유지한다.
+- 기존 방과 메시지를 변환하거나 삭제하지 않았다. 새 메시지부터 새 연동 필드를 사용한다.
+- 수락 재시도는 기존 방의 요약을 지우지 않는다. 메시지 길이는 기존 5,000자다.
+
+숏폼 및 피드백
+- 원본 Storage 숏폼은 기존 객체 덮어쓰기를 허용했다.
+  수정안은 resource == null 생성만 허용하고 update는 명시적으로 금지한다.
+- 기존 업로더 삭제, 100MiB, video/.* MIME 정책을 유지한다. 활성 가입 완료를 추가한다.
+- feature flag가 꺼졌을 때 새 숏폼 생성은 Firestore/Storage 모두 거부한다.
+  레슨 피드백은 원본처럼 별도 기능이므로 이 숏폼 플래그로 막지 않는다.
+- 원본 피드백 Storage는 상태 검증 없이 participantIds만 확인했다.
+  수정안은 실제 studentUid/instructorUid와 accepted/confirmed/completed 상태를 검증한다.
+- 경로와 다른 lessonId/uploaderUid 메타데이터는 거부한다.
+  예전 클라이언트의 메타데이터 없는 업로드는 경로 소유권을 검증하여 계속 허용한다.
+- 관리자 피드백 조회/Storage 삭제, 업로더 삭제, Firestore 피드백 수정·삭제 금지는 유지한다.
+- 원본의 새 영상 userName 및 외부 videoUrl 위조를 막기 위해 본인 이름과 경로를 검증한다.
+  새 videoUrl은 storagePath와 같다. 기존 URL 레코드는 읽기 호환성을 유지한다.
+- 앱 재생은 새 경로에 대해 인증된 Storage getData를 사용한다.
+  이전 작업에서 추가한 서버 영상 삭제·좋아요 집계를 유지하고 관리자 피드백 삭제도 지원한다.
+
+PDF 및 신고
+- PDF의 본인/관리자 조회, 본인 생성, 5MiB, 파일명 범위, 수정·삭제 금지를 유지한다.
+- 가입 중 PDF 제출은 문서가 있는 미완성 활성 계정에 허용한다.
+- PDF 파싱/검증 기록의 클라이언트 위조를 차단하는 원본 정책을 유지한다.
+- 신고자 UID는 두 형식 모두 인증 UID와 일치해야 한다.
+- reporterEmail을 담는 형식은 인증 토큰 이메일과 일치해야 한다.
+- 두 신고 형식과 원본 500자 사유/5,000자 세부 내용, 관리자 읽기 전용 정책을 유지한다.
+
+결제 및 서버 권한
+- payments, payments/*/refunds, payment_gateway_records, refund_requests, payment_stats,
+  demo_gateway_payments, demo_gateway_operations의 클라이언트 읽기/쓰기는 admin도 거부한다.
+- account_admin_operations는 이 금융 자료와 구분하여 관리자 읽기만 복원했다.
+- 결제 callable은 users 존재·활성 상태·가입 완료를 검사한다.
+- 관리자 계정 관리 함수도 초기 검사와 트랜잭션 안에서 가입 완료·활성 관리자 조건을 확인한다.
+- 기존 PG 검증/소유권/서버 금액·환불·수수료 경계는 유지했다. 운영 PG에는 연결하지 않았다.
+
+4. 기존 앱과의 호환성
+
+- Flutter는 공개 프로필을 조회하고 레슨 신청·완료·좋아요는 서버를 통해 처리한다.
+  이는 비공개 users 읽기를 금지하면서 기존 기능을 유지하기 위한 연동 변경이다.
+- 코치 가입·PDF→검증→배지→신청→가입 완료→관리자 승인→레슨 신청을 Emulator로 검사했다.
+- 기존 프로필 필드 길이와 가입 동의, 코치 종목·수업 수준, 배지 순번/색상 검증은 원본과 같다.
+- ProfileScreen은 원래의 reporterUid 형식을 다시 사용한다. ReportDialog는 reporterId 형식을 유지한다.
+- 관리자 기능 플래그와 작업 기록 읽기, 피드백 접근 권한을 복원했다.
+- 비공개 예약과 공개 예약을 분리했으므로 기존 코치·슬롯의 공개 투영을 사전에 준비해야 한다.
+- 구버전 앱은 타인 users 조회/기존 채팅 쓰기 방식을 사용하므로 새 규칙과 완전 호환되지 않는다.
+  최소 앱 버전과 단계적 전환 정책이 필요하다. 현재 운영 앱과 완전 호환된다고 단정하지 않는다.
+
+5. 테스트 결과와 검증 범위
+
+- 원본과 수정본을 동일한 로컬 Emulator에 순서대로 적용한 차등 테스트를 추가했다.
+  원본의 타인 개인정보 조회, 미가입 접근, 덮어쓰기, 단독 lastMessage,
+  신고 이메일/영상 표시 정보 위조, pending 피드백 업로드를 재현한 뒤 수정본의 거부를 확인한다.
+- 기존 21개 검사 외에 원본의 트랜잭션·관리자·플래그·신고·문자수·PDF 정책 회귀 검사를 추가했다.
+- 관리자/결제 함수의 미가입·미완성·정지 계정 거부와 관리자 피드백 삭제를 검사한다.
+- 최종 Emulator 보안/호환성/원본 차등 테스트: 33개 통과, 실패·건너뜀 없음.
+- Flutter 전체 테스트: 143개 통과.
+- Functions 기존 테스트: 25개 통과. TypeScript 빌드도 통과.
+- flutter analyze --no-pub: No issues found.
+- git diff --check: 공백 오류 없음.
+- Functions는 실제 .run 핸들러와 Emulator DB/Storage를 사용한다.
+  Functions Emulator HTTP 전송 및 트리거 자동 전달을 검증한 것은 아니다.
+- 트리거 투영 함수 본문은 직접 실행해서 최신 상태/공개 필드 제외를 검사한다.
+- 운영 데이터, 배포 버전, 실제 기기, 실제 PG, 실제 Auth 관리자 계정 변경은 검증하지 않았다.
+
+재현 명령 (배포 명령 아님):
+  npm ci --prefix functions
+  npm ci --prefix security-tests
+  npm test --prefix functions
+  npm test --prefix security-tests
+  flutter test --no-pub
+  flutter analyze --no-pub
+
+테스트는 demo-onepoint-security와 루프백 Emulator를 사용한다.
+Java 21이 필요하며 Functions는 Node 22를 선언한다. 이번 로컬 실행의 Node는 24다.
+원본/수정본의 문법은 Emulator에서 실제 로드하여 확인한다.
+
+6. 해결하지 않았거나 검증하지 않은 위험
+
+- 기존 다운로드 토큰 URL·GCS 공개 ACL/IAM은 별도 접근 경로다. 회수나 변경을 수행하지 않았다.
+  실제 운영 토큰 노출·취소 즉시 차단을 검증 완료라고 볼 수 없다.
+- Rules는 실제 파일 존재·영상 코덱·악성 바이트를 검사하지 못한다.
+  영상 메타데이터는 소유자 경로를 검증하지만 객체 존재와 동일 콘텐츠까지 보장하지 않는다.
+- 영상은 최대 100MiB를 먼저 다운로드한다. 브라우저/기기별 메모리·재생·임시 파일 정리는 미검증이다.
+- 공개 투영은 비동기이며 기존 문서를 소급 생성하지 않았다. 원본 users/코치/슬롯도 변경하지 않았다.
+- 실제 Google/이메일 로그인, 배포된 Functions/IAM, CORS, Auth 관리 작업, 실제 결제는 미검증이다.
+- App Check/요청 빈도 제한/이메일 인증 강제는 추가로 활성화하지 않았다.
+- Admin SDK는 Rules를 우회하므로 서비스 계정 IAM과 기존 배포 Functions도 별도 감사해야 한다.
+- 원본 배지 정책은 ID 형식·색상·순번·선택을 검증하지만 이름의 소문자 변환 결과까지
+  ID와 일치시키는 조건은 없다. 이번에는 해당 정책을 임의 변경하지 않았다.
+
+7. 배포 전에 필요한 작업
+
+1) 제공 원본과 콘솔의 현재 활성 버전이 같은지 재확인하고 배포된 Functions 소스도 대조한다.
+2) 이 보고서와 두 hardening.diff를 검토한다. 원본 보존 해시를 유지한다.
+3) 기존 uid/profileCompleted/accountStatus/동의/코치/배지/PDF 스키마를 익명 복제 환경에서 점검한다.
+   profileCompleted 없는 레거시 문서는 임의로 가입 완료로 간주하지 않는다.
+4) 기존 회원·승인 코치·슬롯의 공개 투영을 별도 승인된 절차로 준비한다.
+   이번 작업은 운영 투영 생성이나 기존 데이터 변경을 실행하지 않았다.
+5) 스테이징에서 수정 Functions/트리거, Storage→Firestore 조회 권한, 인덱스, IAM/CORS를 확인한다.
+6) 앱/규칙/서버의 단계적 전환, 최소 앱 버전, 롤백 계획을 정한다.
+7) 실제 기기로 가입·코치 승인·매칭·예약·채팅·업로드·재생·삭제·정지 계정 흐름을 확인한다.
+8) 토큰/ACL 정책을 검토하고 승인 후 필요한 회수 작업을 별도로 수행한다.
+9) PG 테스트 환경에서 결제 승인/환불/웹훅을 확인한다. 이번 결과로 운영 결제를 활성화하지 않는다.
+
+8. 수정 파일과 최종 결과
+
+아래에는 Git HEAD 대비 전체 변경 목록과 보존 ZIP 대비 이번 재작업의 변경 목록을 구분하여 기록한다.
+
+A. 이번 재작업에서 수정한 기존 파일 및 새 파일
+이전 보존본에 없던 기존 추적 파일은 Git HEAD와 비교하여 구분했다.
+추가로 수정한 기존 파일 (9개):
+- docs/SECURITY_REVIEW.txt
+- firestore.rules
+- functions/src/admin_accounts.ts
+- functions/src/security_workflows.ts
+- lib/screens/profile_screen.dart
+- lib/services/chat_service.dart
+- lib/services/matching_service.dart
+- security-tests/rules.test.mjs
+- storage.rules
+새로 추가한 파일 (6개):
+- docs/SECURITY_RESTORATION_REVIEW.txt
+- docs/firestore-hardening.diff
+- docs/rules-origin.json
+- docs/storage-hardening.diff
+- firestore.original.rules
+- storage.original.rules
+
+B. Git HEAD 대비 전체 변경 및 추가 파일 (36개)
+- .gitignore
+- docs/SECURITY_RESTORATION_REVIEW.txt
+- docs/SECURITY_REVIEW.txt
+- docs/firestore-hardening.diff
+- docs/rules-origin.json
+- docs/storage-hardening.diff
+- firebase.json
+- firestore.original.rules
+- firestore.rules
+- functions/src/admin_accounts.ts
+- functions/src/index.ts
+- functions/src/scheduling.ts
+- functions/src/security_workflows.ts
+- lib/screens/lesson_feedback_videos_screen.dart
+- lib/screens/profile_screen.dart
+- lib/services/chat_service.dart
+- lib/services/coach_availability_service.dart
+- lib/services/feed_service.dart
+- lib/services/instructor_service.dart
+- lib/services/lesson_service.dart
+- lib/services/matching_service.dart
+- lib/services/storage_video_source_native.dart
+- lib/services/storage_video_source_web.dart
+- lib/services/video_upload_service.dart
+- lib/widget/video_item_widget.dart
+- security-tests/package-lock.json
+- security-tests/package.json
+- security-tests/rules.test.mjs
+- security-tests/run-emulators.mjs
+- storage.original.rules
+- storage.rules
+- test/feed_service_test.dart
+- test/instructor_service_test.dart
+- test/lesson_requests_screen_test.dart
+- test/lesson_workflow_test.dart
+- test/support/fake_functions.dart

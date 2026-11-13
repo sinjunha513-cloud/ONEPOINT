@@ -1,13 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class FeedService {
-  FeedService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+  FeedService(
+      {FirebaseFirestore? firestore,
+      FirebaseAuth? auth,
+      FirebaseFunctions? functions})
       : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance,
+        _functions = functions;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final FirebaseFunctions? _functions;
 
   String? get currentUserId => _auth.currentUser?.uid;
 
@@ -28,45 +34,9 @@ class FeedService {
     final uid = currentUserId;
     if (uid == null) throw StateError('로그인 후 좋아요를 누를 수 있습니다.');
 
-    final videoRef = _firestore.collection('feed_videos').doc(videoId);
-    final likeRef = videoRef.collection('likes').doc(uid);
-    await _firestore.runTransaction((transaction) async {
-      final video = await transaction.get(videoRef);
-      final like = await transaction.get(likeRef);
-      if (!video.exists) throw StateError('삭제되었거나 존재하지 않는 영상입니다.');
-      final data = video.data()!;
-      final authorId = data['userId'] as String?;
-      if (authorId == null || authorId.isEmpty) {
-        throw StateError('영상 작성자를 확인할 수 없습니다.');
-      }
-      if (authorId == uid) throw StateError('내 영상에는 좋아요를 누를 수 없습니다.');
-
-      final authorRef = _firestore.collection('users').doc(authorId);
-      final author = await transaction.get(authorRef);
-      if (!author.exists) throw StateError('영상 작성자의 계정을 찾을 수 없습니다.');
-      if (like.exists == liked) return;
-
-      final delta = liked ? 1 : -1;
-      final videoLikes = _count(data['likes']);
-      final authorLikes = _count(author.data()?['feedLikeCount']);
-      transaction.update(videoRef, {'likes': _nonnegative(videoLikes + delta)});
-      transaction.update(authorRef, {
-        'lastFeedLikeVideoId': videoId,
-        'feedLikeCount': _nonnegative(authorLikes + delta),
-      });
-      if (liked) {
-        transaction.set(likeRef, {
-          'userId': uid,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        transaction.delete(likeRef);
-      }
-    });
+    await (_functions ??
+            FirebaseFunctions.instanceFor(region: 'asia-northeast3'))
+        .httpsCallable('setFeedLiked')
+        .call({'videoId': videoId, 'liked': liked});
   }
-
-  static int _count(dynamic value) =>
-      value is num ? _nonnegative(value.toInt()) : 0;
-
-  static int _nonnegative(int value) => value < 0 ? 0 : value;
 }

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import '../services/video_upload_service.dart';
@@ -21,17 +20,11 @@ class LessonFeedbackVideosScreen extends StatefulWidget {
 class _LessonFeedbackVideosScreenState
     extends State<LessonFeedbackVideosScreen> {
   int _page = 0;
-  final Map<String, Future<String>> _downloadUrls = {};
   VideoUploadService? _videoService;
   final Set<String> _deleting = <String>{};
 
   String? get _currentUid => FirebaseAuth.instance.currentUser?.uid;
   VideoUploadService get _videos => _videoService ??= VideoUploadService();
-
-  Future<String> _downloadUrl(String storagePath) => _downloadUrls.putIfAbsent(
-        storagePath,
-        () => FirebaseStorage.instance.ref(storagePath).getDownloadURL(),
-      );
 
   Future<void> _deleteFeedback(String videoId) async {
     if (_deleting.contains(videoId)) return;
@@ -128,34 +121,11 @@ class _LessonFeedbackVideosScreenState
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    FutureBuilder<String>(
-                      future: storagePath.isEmpty
-                          ? Future<String>.error('missing storage path')
-                          : _downloadUrl(storagePath),
-                      builder: (context, urlSnapshot) {
-                        if (urlSnapshot.hasError) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text(
-                                '영상을 불러오지 못했습니다. 레슨 참여 권한과 연결 상태를 확인해 주세요.',
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          );
-                        }
-                        if (!urlSnapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                        return VideoItemWidget(
-                          key: ValueKey(videoId),
-                          videoUrl: urlSnapshot.data!,
-                          fit: BoxFit.contain,
-                          isPlaying: index == _page,
-                        );
-                      },
+                    VideoItemWidget(
+                      key: ValueKey(videoId),
+                      videoUrl: storagePath,
+                      fit: BoxFit.contain,
+                      isPlaying: index == _page,
                     ),
                     Positioned(
                       left: 16,

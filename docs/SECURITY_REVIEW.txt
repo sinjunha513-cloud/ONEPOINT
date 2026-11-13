@@ -1,0 +1,210 @@
+이전 Codex 작업 기록 — 현재 확정 보고서가 아님
+사용자 제공 원본을 받은 뒤 다시 검토한 최신 결과는 SECURITY_RESTORATION_REVIEW.txt에 있다.
+아래 내용은 이전 상태의 기록으로 보존한다. 당시 규칙은 운영 원본과 비교하지 않은 생성안이다.
+
+ONEPOINT 보안 규칙 점검 및 개선 보고서
+점검일: 2026-11-13 (Asia/Seoul)
+
+범위와 제한
+이 보고서는 저장소 코드와 로컬 demo-onepoint-security Emulator를 대상으로 한다.
+운영 Firebase에 배포하거나 운영 데이터를 조회·삭제·변경하지 않았다.
+비밀키·실제 회원 개인정보를 출력하지 않았으며 결제는 운영 PG에 연결하지 않았다.
+운영 규칙, IAM, 버킷 ACL, 기존 다운로드 토큰의 실제 상태는 확인하지 않았다.
+따라서 아래의 개선은 로컬 소스에 대한 것이며 운영 취약점 해결 완료를 의미하지 않는다.
+
+1. 기존 구조와 수정 전후
+
+규칙 및 설정
+- 기존 저장소에 firestore.rules, storage.rules, firebase.json이 없었다.
+  운영 규칙이 없거나 모두 허용이라고 단정할 수는 없다.
+- 두 규칙 파일과 로컬 Emulator 설정을 추가했다. 명시하지 않은 경로는 거부한다.
+
+회원가입 및 프로필
+- 이메일 가입은 Authentication 계정 생성 → users 초기화 → 동의·프로필 저장 순서다.
+- Google 로그인은 기본 student/미완성 프로필을 만들고 가입 완료 화면으로 이동한다.
+- role과 requestedRole을 구분한다. 코치 신청도 승인 전에는 student다.
+- users 문서가 없는 인증 사용자에게는 본인 초기 문서 생성만 허용한다.
+- 초기 문서는 student, profileCompleted=false, 활동 집계=0만 허용한다.
+- 미완성 활성 계정은 본인 프로필·코치 신청·PDF 검증·뱃지 등록을 수행할 수 있다.
+- 서비스 데이터에는 활성 계정이면서 profileCompleted=true여야 접근한다.
+- 정지 계정은 자신의 users 문서만 읽어 계정 상태 감시/로그아웃 처리를 유지한다.
+- users 조회는 본인 또는 활성 가입 완료 관리자만 허용한다. 일반 회원의 목록 조회를 차단한다.
+- 클라이언트의 role/accountStatus/활동 집계 임의 변경을 차단한다.
+
+공개 프로필 및 코치 등록
+- users → public_users, instructors → public_instructors의 서버 투영을 추가했다.
+- 이메일, 약관 동의, 정지 상태, 심사 담당자, PDF 참조는 공개 투영에서 제외한다.
+- 이름·사진·소개·역할·표시용 활동 집계 등 공개 목적 필드만 복사한다.
+- 코치 공개 프로필은 활성 가입 완료 coach이며 신청이 approved인 경우만 생성한다.
+- 상태 변경/삭제 이벤트는 이벤트의 과거 데이터 대신 트랜잭션에서 최신 원본을 읽는다.
+- Flutter의 타인 프로필과 코치 탐색은 공개 컬렉션을 조회한다.
+- 코치 신청 원본은 본인과 관리자만 조회한다. 본인은 pending 신청만 생성/재제출한다.
+- 신청 종목·이름·경력·PDF 검증 기록과 선택한 전역 뱃지의 이름/색상을 검증한다.
+- 관리자 승인과 coach 역할 부여 흐름을 유지한다. 본인 승인은 거부한다.
+
+코치 증빙 PDF
+- coach_documents/{uid}/pdf_*.pdf: 본인과 활성 관리자만 읽는다.
+- 가입이 미완성이어도 users 문서가 있는 활성 본인은 PDF를 업로드할 수 있다.
+- 빈 파일, 5MiB 초과, application/pdf 이외의 MIME, 기존 객체 덮어쓰기를 거부한다.
+- 검증된 증빙을 삭제 후 같은 ID로 재생성하는 우회를 막기 위해 클라이언트 PDF 삭제도 거부한다.
+  기존 앱에 PDF 삭제 UI/호출은 없으며 계정 삭제 시 서버 정리는 유지한다.
+- 기존 validateCareerPdf는 실제 PDF 파싱 후 검증 기록을 작성한다.
+  이 함수와 adminManageAccount가 기존 index.ts에서 export되지 않았던 문제도 수정했다.
+- coach_document_uploads 검증 기록은 클라이언트가 작성할 수 없다.
+
+레슨 신청, 예약, 완료, 일정 변경
+- 기존 레슨 신청은 상대 코치 users를 읽고, 완료는 수강생 users를 읽고 수정했다.
+  이 구조를 그대로 두면 users 개인정보 차단과 충돌하므로 서버 callable로 이동했다.
+- requestLesson은 인증 계정/학생 역할/활성 승인 코치/중복 활성 신청을 트랜잭션에서 검증한다.
+- 일반 레슨의 paymentRequired=false 동작을 유지하고 클라이언트 금액·상태 입력은 받지 않는다.
+- 레슨 조회는 참여자 또는 관리자, 일반 수락/거절/취소는 담당자와 pending 상태로 제한한다.
+- 결제 연결 레슨의 수락·완료·결제 필드는 클라이언트가 직접 조작하지 못한다.
+- completeLesson은 담당 coach만 완료할 수 있고 학생 활동 집계와 출석 뱃지를 함께 기록한다.
+  재시도 시 중복 지급하지 않는다. 기존 계정/레슨의 시그니처 fallback도 유지한다.
+- 앱에 호출만 있던 예약/가능 시간/일정 변경 함수를 구현해 연결했다.
+- 시간 중복, 과거 시간, 예약된 슬롯 수정/삭제, 타인의 일정 변경을 거부한다.
+- 수강생과 담당 코치 모두 기존 UI와 같이 진행 중인 레슨의 일정을 변경할 수 있다.
+- 일정 변경 이력, scheduleRevision, 이전 슬롯 해제를 트랜잭션으로 처리한다.
+- 예약 내부 문서와 public_availability를 분리해 탐색 시 lessonId/studentUid를 노출하지 않는다.
+- 취소/거절 후 슬롯·활성 신청 정리는 서버 트리거에서도 수행한다.
+
+채팅
+- 방은 실제 수락된 레슨의 학생/코치/표시 이름과 연결해서 생성한다.
+- 읽기/메시지 작성은 활성 가입 완료 참여자만 허용한다. 관리자의 일괄 열람도 허용하지 않는다.
+- senderId와 서버 작성 시각, 1~4000자 본문을 검증하고 메시지 수정/삭제는 거부한다.
+- lastMessageId를 추가하고 같은 배치에 생성한 메시지의 본문·작성자·시각과 요약을 대조한다.
+- 요약 단독 변경, 기존 메시지 재사용, 발신자 사칭, 참여자 변경을 거부한다.
+- 기존 채팅방은 읽기/메시지 전송이 가능하다. 새 방만 lessonId가 필요하다.
+- 수락 재시도는 이미 존재하는 방과 lastMessage를 덮어쓰지 않는다.
+
+숏폼 및 레슨 피드백 영상
+- 숏폼은 본인 videos/{uid}/ 경로만 생성/삭제하고 가입 완료 회원만 읽는다.
+- 피드백은 participantIds 배열만 신뢰하지 않고 실제 studentUid/instructorUid로 Storage 접근을 검증한다.
+- 피드백 업로드는 accepted/confirmed/completed 레슨의 활성 가입 완료 참여자만 허용한다.
+- 업로더 UID와 lessonId 메타데이터, 파일 경로를 검증한다.
+- 영상은 0초과~100MiB, 지원 MIME(mp4/quicktime/webm/x-m4v)과 확장자만 허용한다.
+- 기존 객체가 없어야 생성 가능하며 덮어쓰기와 메타데이터 수정은 거부한다.
+- Firestore 영상 작성자·표시 이름·Storage 경로·서버 시각·초기 likes=0을 검증한다.
+- 새 숏폼 videoUrl에는 storagePath와 같은 경로를 저장해 임의 외부 URL 등록을 거부한다.
+- 앱에 호출만 있던 deleteVideo를 구현했다. 본인 영상만 삭제하고 좋아요 경험치도 정리한다.
+- 좋아요는 서버 setFeedLiked로 옮겨 타인 users 조회/수정 권한 없이 중복 방지 집계를 유지한다.
+- 피드백 재생은 getDownloadURL 대신 인증된 getData를 사용한다.
+  웹은 메모리 Blob URL, 네이티브는 임시 파일을 이용하며 재생 종료/해제 시 정리한다.
+- 기존 숏폼 URL 레코드는 읽기 호환성을 유지한다.
+
+신고
+- 두 신고 UI의 저장 형식을 reporterId/reporterEmail 중심으로 통일했다.
+- reporterId=인증 UID, reporterEmail=인증 토큰 이메일을 강제한다.
+- 신고 문서 조회/처리는 관리자만 허용하고 일반 회원은 생성만 가능하다.
+- 이메일 인증 자체의 진위와 신고 내용의 사실 여부까지 검증하는 것은 아니다.
+
+결제
+- payments/payment_gateway_records/payment_stats 및 미허용 내부 컬렉션은
+  admin을 포함한 모든 클라이언트의 직접 읽기/쓰기를 거부한다.
+- 결제 callable 인증 검사에 users 존재·가입 완료 조건을 추가했다.
+- 기존 서버 금액 검증·소유권 검사·PG 재조회·비밀키 접근 경계를 유지한다.
+- 운영 결제 활성화, 실제 승인/환불, PG 웹훅 실연동은 이번에 검증하지 않았다.
+
+2. 테스트와 재현
+
+- Emulator: security-tests/rules.test.mjs의 21개 테스트. 개별 테스트 안에서
+  student/coach/admin/익명/문서 없는 사용자/미완성/정지 계정의 허용·거부를 검사한다.
+- Firestore와 Storage 규칙은 Emulator에서 컴파일 및 실행한다.
+- callable은 실제 핸들러(.run)를 Emulator Firestore/Storage와 함께 실행한다.
+  Functions Emulator의 HTTP 배포/전송 계층이나 실제 트리거 자동 전달을 검증한 것은 아니다.
+- 공개 투영은 실제 함수 본문을 직접 실행해 비공개 필드 제외와 상태 변경을 검사한다.
+- Flutter의 서버로 이동한 로직 테스트는 호출 경계 테스트로 바꿨다.
+  권한·중복 신청·중복 완료·좋아요 집계는 가짜 구현 대신 Emulator에서 실제 서버 코드로 검사한다.
+- Flutter 전체 143개 테스트 통과. Functions 기존 25개 테스트 통과.
+- 최종 소스 Emulator 재실행: 21개 테스트 모두 통과, 실패/건너뜀 없음.
+- flutter analyze --no-pub: No issues found.
+- flutter build web --no-pub: build/web 생성 성공. 실제 브라우저 재생을 검증한 것은 아니다.
+- git diff --check: 공백 오류 없음.
+
+재현 명령(운영 배포 명령이 아님):
+  npm ci --prefix functions
+  npm ci --prefix security-tests
+  npm test --prefix functions
+  npm test --prefix security-tests
+  flutter test --no-pub
+  flutter analyze --no-pub
+
+Node.js는 Functions가 선언한 22를 권장한다. 이번 로컬 실행은 Node 24에서 이루어졌다.
+Java 21 이상이 PATH/JAVA_HOME에 있어야 한다. 테스트 스크립트는 demo 프로젝트를 고정하고
+두 Emulator 환경 변수 없이 rules.test.mjs를 직접 실행하면 중단한다.
+상위 셸의 DEBUG를 제거하여 Firebase CLI가 전체 환경 변수를 로그로 출력하지 않도록 했다.
+
+3. 남은 위험 및 미검증 항목
+
+- 기존 다운로드 토큰 URL은 Rules와 별개의 bearer 접근 수단이다.
+  앱이 새 피드백 URL을 발급하지 않도록 바꿨지만 기존 토큰을 폐기하지 않았다.
+  민감 영상/PDF의 토큰·GCS 공개 ACL·IAM을 운영자가 별도로 감사하고 필요한 토큰 폐기를
+  승인해야 한다. 유효한 토큰의 즉시 회수나 외부 공유 차단을 검증 완료라고 볼 수 없다.
+- Rules는 동영상의 실제 바이트/코덱·악성 콘텐츠를 검사하지 못한다.
+  MIME은 업로드 메타데이터 검증이며 실제 영상 파싱/악성 파일 검사는 별도 서버 작업이 필요하다.
+- Firestore Rules에서 Storage 객체 존재를 조회할 수 없으므로 메타데이터 경로 검증만 한다.
+  파일 없는 영상 레코드/업로드 후 메타데이터 쓰기 실패의 고아 파일은 완전히 차단하지 않았다.
+- 공개 투영 트리거는 비동기다. 승인·정지·삭제 반영에 짧은 지연이 있을 수 있다.
+  신청 및 예약 권한은 서버에서 최신 원본을 다시 검사한다.
+- 기존 회원/코치/슬롯의 공개 문서는 자동 소급 생성되지 않는다. 운영 데이터는 건드리지 않았다.
+  사전 투영 생성 없이 새 클라이언트를 배포하면 기존 코치 목록/공개 프로필이 비어 보일 수 있다.
+- 영상 재생은 최대 100MiB를 먼저 내려받는다. 실제 Android/iOS/브라우저에서의 메모리 사용,
+  지연, 코덱, 임시 파일 정리, Storage CORS는 별도 기기 테스트가 필요하다.
+- 실제 Google/이메일 로그인, 새로 배포된 callable의 전송 계층, 트리거 배포/IAM,
+  기존 운영 데이터 스키마, Functions Node 22 런타임은 이번 검증 범위에 포함되지 않았다.
+- App Check, 호출 빈도 제한, 이메일 인증 강제, 운영 PG 연결은 활성화하지 않았다.
+  Firebase Rules는 Admin SDK/IAM 권한을 제한하지 않으므로 서버 계정 권한 감사가 필요하다.
+- 기존 클라이언트는 비공개 users 조회/직접 집계/구형 lastMessage 쓰기를 사용하므로
+  새 Rules와 호환되지 않는다. 앱 업데이트/최소 버전 정책을 포함한 배포 조정이 필요하다.
+
+4. 배포 전 확인 사항
+
+1) 운영 Rules와 IAM/ACL을 읽기 전용으로 확보하여 이 소스와 비교한다.
+2) 기존 users의 uid, profileCompleted, 동의 필드/버전, accountStatus와 코치 신청·PDF 검증 기록을
+   익명화된 복제 환경에서 점검한다. 신규 규칙으로 차단될 레거시 문서는 별도 승인 후 처리한다.
+3) 공개 투영에 동의한 필드를 재확인하고 기존 사용자·승인 코치·슬롯의 투영을 별도 승인된
+   마이그레이션으로 준비한다. 이번 작업에서는 운영 소급 생성/변경을 실행하지 않았다.
+4) 스테이징에서 Functions/트리거를 먼저 준비하고 공개 데이터 생성 및 역할별 앱 흐름을 확인한다.
+   앱·Rules의 버전 전환과 롤백 순서를 합의한다. 구버전 클라이언트 차단도 검토한다.
+   Storage Rules의 Firestore 교차 조회 권한과 기본 데이터베이스 설정도 확인한다.
+5) private 영상/PDF의 기존 토큰과 버킷 공개 접근을 점검하고 승인된 회수 절차를 수행한다.
+6) 실제 기기에서 가입→코치 신청/PDF→관리자 승인→탐색→신청/예약→수락/채팅→
+   일정 변경→피드백 업로드/재생→완료/좋아요→영상 삭제를 확인한다.
+7) 정지 직후 기존 로그인 세션, App Check 정책, 호출 한도, 오류 재시도 및 트리거 실패 알림을 확인한다.
+8) 결제는 별도 테스트 PG에서 승인·환불·웹훅 검증을 거친다. 이번 결과만으로 운영 결제를 켜지 않는다.
+
+공식 참고 문서
+https://firebase.google.com/docs/rules/unit-tests
+https://firebase.google.com/docs/firestore/security/test-rules-emulator
+
+5. 수정/추가 파일 목록 (29개)
+
+- .gitignore
+- docs/SECURITY_REVIEW.txt
+- firebase.json
+- firestore.rules
+- functions/src/index.ts
+- functions/src/scheduling.ts
+- functions/src/security_workflows.ts
+- lib/screens/lesson_feedback_videos_screen.dart
+- lib/screens/profile_screen.dart
+- lib/services/chat_service.dart
+- lib/services/coach_availability_service.dart
+- lib/services/feed_service.dart
+- lib/services/instructor_service.dart
+- lib/services/lesson_service.dart
+- lib/services/matching_service.dart
+- lib/services/storage_video_source_native.dart
+- lib/services/storage_video_source_web.dart
+- lib/services/video_upload_service.dart
+- lib/widget/video_item_widget.dart
+- security-tests/package-lock.json
+- security-tests/package.json
+- security-tests/rules.test.mjs
+- security-tests/run-emulators.mjs
+- storage.rules
+- test/feed_service_test.dart
+- test/instructor_service_test.dart
+- test/lesson_requests_screen_test.dart
+- test/lesson_workflow_test.dart
+- test/support/fake_functions.dart
