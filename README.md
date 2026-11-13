@@ -9,6 +9,26 @@
 
 The application brings coach discovery, lesson availability, booking, communication, and platform administration into a single workflow. It uses Flutter for the client application and Firebase services for authentication, application data, media storage, notifications, and backend functions.
 
+## App screenshots
+
+A preview of the current ONEPOINT development interface. Screenshots illustrate the UI and do not by themselves verify complete end-to-end functionality.
+
+| Sign in | Coach discovery |
+| :---: | :---: |
+| <img src="screenshots/screenshots/%EC%8A%A4%ED%81%AC%EB%A6%B0%EC%83%B7%202026-11-13%20124725.png" alt="ONEPOINT sign-in screen" width="430"> | <img src="screenshots/screenshots/01-home.png" alt="Sports categories and coach discovery" width="430"> |
+| **Email and Google sign-in interface** | **Browse sports categories and recommended coaches** |
+
+| Coach availability | Short-form upload |
+| :---: | :---: |
+| <img src="screenshots/screenshots/02-availability.png" alt="Coach calendar for selecting available dates and times" width="430"> | <img src="screenshots/screenshots/03-video-upload.png" alt="Short-form video upload form" width="430"> |
+| **Select available lesson dates and time slots** | **Choose a video and enter upload details** |
+
+**Video feed**
+
+<img src="screenshots/screenshots/04-video-feed.png" alt="Short-form video feed showing a sports clip" width="430">
+
+Browse sports video content in the feed.
+
 ## Key features
 
 | Area | Capabilities represented in the codebase |
