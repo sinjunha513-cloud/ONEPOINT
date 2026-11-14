@@ -9,7 +9,7 @@
 
 The application brings coach discovery, lesson availability, booking, communication, and platform administration into a single workflow. It uses Flutter for the client application and Firebase services for authentication, application data, media storage, notifications, and backend functions.
 
-## App screenshots
+## Live demo and walkthrough\n\n- **ONEPOINT web demo:** [Open the deployed app](https://onlyonepoint-lesson.web.app)\n- **Walkthrough video:** [Watch the ONEPOINT demo](./demo/onepoint-demo.mp4) ([download the MP4](./demo/onepoint-demo.mp4))\n\nThe walkthrough is encoded at 1280-pixel width for convenient playback in the repository.\n\n## App screenshots
 
 A preview of the current ONEPOINT development interface. Screenshots illustrate the UI and do not by themselves verify complete end-to-end functionality.
 
