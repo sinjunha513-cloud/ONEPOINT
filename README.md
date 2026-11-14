@@ -7,13 +7,13 @@
 
 ## Contribution and project scope
 
-**Junha Shin — independent project, 6 months.** Responsible for application and backend development.
+**Junha Shin — individual project, 6 months; GPT-assisted application development.** I used GPT extensively for code generation, revision, and troubleshooting while developing the application and backend. Individual project ownership refers to the project format, not to unaided implementation of every component.
 
 **Problem:** connecting coaches and students requires coordinated account roles, lesson availability, applications, and communication.
 
-**Implementation:** built a Flutter client with Firebase services and server-side workflow code to support these interactions. The linked web demo and walkthrough show the current development interface.
+**Implementation:** developed a Flutter client with Firebase services and server-side workflow code with GPT assistance to support these interactions. The linked web demo and walkthrough show the current development interface.
 
-**Portfolio contribution:** experience implementing a multi-role application and connecting client interfaces to backend services. This is a software engineering project; no machine-learning model or research evaluation is claimed.
+**Portfolio contribution:** practical exposure to multi-role application workflows and client–backend integration through GPT-assisted development. This is a software engineering project; no machine-learning model or research evaluation is claimed.
 
 ## Overview
 
