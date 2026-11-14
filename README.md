@@ -5,6 +5,16 @@
 
 > **Project status:** Active development. This repository is a development snapshot, not a production-ready release. Payment integration code exists, but live payment configuration and end-to-end production readiness have not been verified.
 
+## Contribution and project scope
+
+**Junha Shin — independent project, 6 months.** Responsible for application and backend development.
+
+**Problem:** connecting coaches and students requires coordinated account roles, lesson availability, applications, and communication.
+
+**Implementation:** built a Flutter client with Firebase services and server-side workflow code to support these interactions. The linked web demo and walkthrough show the current development interface.
+
+**Portfolio contribution:** experience implementing a multi-role application and connecting client interfaces to backend services. This is a software engineering project; no machine-learning model or research evaluation is claimed.
+
 ## Overview
 
 The application brings coach discovery, lesson availability, booking, communication, and platform administration into a single workflow. It uses Flutter for the client application and Firebase services for authentication, application data, media storage, notifications, and backend functions.
