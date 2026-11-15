@@ -5,6 +5,14 @@
 
 > **Project status:** Active development. This repository is a development snapshot, not a production-ready release. Payment integration code exists, but live payment configuration and end-to-end production readiness have not been verified.
 
+## Outputs
+
+- A Flutter/Firebase application with student, coach and administrator interfaces.
+- Screens for coach discovery, lesson availability and applications, messaging and short-form video.
+- A web demonstration, walkthrough video, screenshots and application/backend source code.
+
+The linked materials show the development interface. Live payment configuration and production readiness are outside the demonstrated scope.
+
 ## Contribution and project scope
 
 **Junha Shin — individual project, 6 months; GPT-assisted application development.** I used GPT extensively for code generation, revision, and troubleshooting while developing the application and backend. Individual project ownership refers to the project format, not to unaided implementation of every component.
