@@ -100,7 +100,7 @@ class _MainScreenState extends State<MainScreen> {
                                       uid: _auth.currentUser?.uid ?? '',
                                       role: profile.data?.data()?['role']
                                               as String? ??
-                                          'student',
+                                          '',
                                       loaded: loaded,
                                       hasError:
                                           lessons.hasError || profile.hasError,

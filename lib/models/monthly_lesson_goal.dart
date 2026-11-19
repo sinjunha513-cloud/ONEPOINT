@@ -35,8 +35,9 @@ class MonthlyLessonGoal {
   late final String monthKey;
   late final String monthLabel;
   late final int count;
-  int get percent => eligible ? (count * 100 ~/ target).clamp(0, 100) : 0;
+  int get percent => (count * 100 ~/ target).clamp(0, 100);
   int get remainingPercent => 100 - percent;
-  int get remainingLessons => eligible ? (target - count).clamp(0, target) : 0;
-  bool get achieved => eligible && count >= target;
+  int get remainingLessons => (target - count).clamp(0, target);
+  bool get targetReached => count >= target;
+  bool get achieved => eligible && targetReached;
 }

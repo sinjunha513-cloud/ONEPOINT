@@ -23,6 +23,7 @@ import 'signature_badge_catalog_screen.dart';
 import 'signup_screen.dart';
 import 'coupon_wallet_screen.dart';
 import '../services/coupon_service.dart';
+import '../widgets/monthly_lesson_goal_card.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen(
@@ -47,6 +48,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   late final _badges =
       LessonBadgeService(firestore: _db, auth: _auth).earnedBadges();
   late final _lessons = MatchingService(firestore: _db, auth: _auth).lessons();
+  late final _coupons = CouponService(firestore: _db, auth: _auth);
   bool _signingOut = false;
 
   void _open(Widget screen) =>
@@ -207,6 +209,19 @@ class _MyPageScreenState extends State<MyPageScreen> {
                                       '목표 티어', target, OnepointDesign.blue,
                                       right: true)),
                             ]),
+                        const SizedBox(height: 20),
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: _lessons,
+                            builder: (context, lessons) =>
+                                MonthlyLessonGoalCard(
+                                    lessons: lessons.data?.docs
+                                            .map((doc) => doc.data()) ??
+                                        [],
+                                    uid: _user!.uid,
+                                    role: role,
+                                    loaded: lessons.hasData,
+                                    hasError: lessons.hasError,
+                                    service: _coupons)),
                         const SizedBox(height: 20),
                         _calendarCard(role),
                         const SizedBox(height: 24),

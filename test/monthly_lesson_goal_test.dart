@@ -63,7 +63,9 @@ void main() {
     expect(coach.count, 22);
     expect(coach.eligible, false);
     expect(coach.achieved, false);
-    expect(coach.percent, 0);
+    expect(coach.percent, 100);
+    expect(coach.targetReached, true);
+    expect(coach.remainingLessons, 0);
     expect(
         MonthlyLessonGoal(
                 lessons: lessons,

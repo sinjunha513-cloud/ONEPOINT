@@ -1,0 +1,250 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-19T15:15:05.833Z",
+  "primaryUrl": "https://onlyonepoint-lesson.web.app",
+  "sites": [
+    {
+      "site": "onlyonepoint-lesson",
+      "url": "https://onlyonepoint-lesson.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795101236745000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/db20efb1c6673339",
+      "releaseTime": "2026-11-19T15:13:56.745Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "386d6e3d26a6696933597388a68ba1e5c754ef1ad57a77a52b6b4fcbfa318b7b",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "10edda954f1f2511fb35b22b9c113758f84609b60b93370486fe88e8158ae535",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "f2055a841b82c330265c00ad3273b0ffa07252e57c556e1c3b3edba55d7b6fc1",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "url": "https://onlyonepoint-lesson-v2.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795101236937000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/192e28a0343cdee4",
+      "releaseTime": "2026-11-19T15:13:56.937Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "386d6e3d26a6696933597388a68ba1e5c754ef1ad57a77a52b6b4fcbfa318b7b",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "10edda954f1f2511fb35b22b9c113758f84609b60b93370486fe88e8158ae535",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "f2055a841b82c330265c00ad3273b0ffa07252e57c556e1c3b3edba55d7b6fc1",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "verification": "Published index, bootstrap and JavaScript hashes match the local release build on both existing sites. Public icon bytes, valid image formats and manifest sizes verified on both sites. Progress views verified using fixture accounts in real Flutter widgets; no production test records were created.",
+  "iconChecks": [
+    {
+      "site": "onlyonepoint-lesson",
+      "checks": [
+        {
+          "file": "manifest.json",
+          "status": 200,
+          "sha256": "f7bffd4af8b6ae5879c4ab44f080d08cb529a6e8612d4506e52374580c0f3ed2",
+          "contentType": "application/json"
+        },
+        {
+          "file": "favicon.png",
+          "status": 200,
+          "sha256": "0344fd6278dfcc81b38a962860518a45f5d181869fd9a0aee5b888c516308578",
+          "contentType": "image/png",
+          "width": 192,
+          "height": 192
+        },
+        {
+          "file": "favicon.ico",
+          "status": 200,
+          "sha256": "798eedfacd4e5b819ddec2e08b2a3d668d93acb36aa4bfa9ceeb92acbe73c91c",
+          "contentType": "image/x-icon"
+        },
+        {
+          "file": "icons/Icon-192.png",
+          "status": 200,
+          "sha256": "0344fd6278dfcc81b38a962860518a45f5d181869fd9a0aee5b888c516308578",
+          "contentType": "image/png",
+          "width": 192,
+          "height": 192
+        },
+        {
+          "file": "icons/Icon-512.png",
+          "status": 200,
+          "sha256": "02a0ae353108898b98f8ce92ef78edc0b472797d30360cf60b308687176cf0ee",
+          "contentType": "image/png",
+          "width": 512,
+          "height": 512
+        },
+        {
+          "file": "icons/Icon-maskable-192.png",
+          "status": 200,
+          "sha256": "3ec840ff0cc20666976cf3e296a79dbcfe50528e8e48829057d219bba4a885aa",
+          "contentType": "image/png",
+          "width": 192,
+          "height": 192
+        },
+        {
+          "file": "icons/Icon-maskable-512.png",
+          "status": 200,
+          "sha256": "2985fb5cf34e04d03de246c78b77ff088cef6e8ee1f9fd4bbd8b304c1af2902a",
+          "contentType": "image/png",
+          "width": 512,
+          "height": 512
+        },
+        {
+          "file": "icons/apple-touch-icon.png",
+          "status": 200,
+          "sha256": "3c7e87c8eb36220e38747f590993c13c38e1ba7e1ec4d4114131ccdea91af5cd",
+          "contentType": "image/png",
+          "width": 180,
+          "height": 180
+        }
+      ]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "checks": [
+        {
+          "file": "manifest.json",
+          "status": 200,
+          "sha256": "f7bffd4af8b6ae5879c4ab44f080d08cb529a6e8612d4506e52374580c0f3ed2",
+          "contentType": "application/json"
+        },
+        {
+          "file": "favicon.png",
+          "status": 200,
+          "sha256": "0344fd6278dfcc81b38a962860518a45f5d181869fd9a0aee5b888c516308578",
+          "contentType": "image/png",
+          "width": 192,
+          "height": 192
+        },
+        {
+          "file": "favicon.ico",
+          "status": 200,
+          "sha256": "798eedfacd4e5b819ddec2e08b2a3d668d93acb36aa4bfa9ceeb92acbe73c91c",
+          "contentType": "image/x-icon"
+        },
+        {
+          "file": "icons/Icon-192.png",
+          "status": 200,
+          "sha256": "0344fd6278dfcc81b38a962860518a45f5d181869fd9a0aee5b888c516308578",
+          "contentType": "image/png",
+          "width": 192,
+          "height": 192
+        },
+        {
+          "file": "icons/Icon-512.png",
+          "status": 200,
+          "sha256": "02a0ae353108898b98f8ce92ef78edc0b472797d30360cf60b308687176cf0ee",
+          "contentType": "image/png",
+          "width": 512,
+          "height": 512
+        },
+        {
+          "file": "icons/Icon-maskable-192.png",
+          "status": 200,
+          "sha256": "3ec840ff0cc20666976cf3e296a79dbcfe50528e8e48829057d219bba4a885aa",
+          "contentType": "image/png",
+          "width": 192,
+          "height": 192
+        },
+        {
+          "file": "icons/Icon-maskable-512.png",
+          "status": 200,
+          "sha256": "2985fb5cf34e04d03de246c78b77ff088cef6e8ee1f9fd4bbd8b304c1af2902a",
+          "contentType": "image/png",
+          "width": 512,
+          "height": 512
+        },
+        {
+          "file": "icons/apple-touch-icon.png",
+          "status": 200,
+          "sha256": "3c7e87c8eb36220e38747f590993c13c38e1ba7e1ec4d4114131ccdea91af5cd",
+          "contentType": "image/png",
+          "width": 180,
+          "height": 180
+        }
+      ]
+    }
+  ],
+  "originalArtwork": {
+    "path": "assets/icon/app_icon.png",
+    "sha256": "e7993f27d88008a3fe9aaa19ced9321016fb82470c1c89c373dbdf64816d28ed",
+    "export": "Existing artwork exported to web icon sizes; no new artwork."
+  },
+  "progress": {
+    "target": 20,
+    "percentPerCompletedLesson": 5,
+    "roles": {
+      "student": "completed lessons taken",
+      "coach": "completed lessons taught"
+    },
+    "views": [
+      "home",
+      "My Page"
+    ],
+    "couponEligibleRole": "student",
+    "backendChanges": false
+  },
+  "validation": {
+    "flutterTests": 182,
+    "flutterAnalyze": "passed",
+    "webStartupTests": 5,
+    "visualFixtureChecks": "passed"
+  },
+  "fixtureScreenshots": [
+    "screenshots/monthly-progress-student-home-320.png",
+    "screenshots/monthly-progress-coach-home-320.png",
+    "screenshots/monthly-progress-coach-mypage-320.png"
+  ],
+  "browserChecks": [
+    {
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    },
+    {
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    }
+  ]
+}

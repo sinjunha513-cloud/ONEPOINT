@@ -73,33 +73,12 @@ class _MonthlyLessonGoalCardState extends State<MonthlyLessonGoalCard>
     final goal = MonthlyLessonGoal(
         lessons: widget.lessons, uid: widget.uid, role: widget.role);
     final loaded = widget.loaded && !widget.hasError;
-    if (!goal.eligible) {
-      return Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${goal.monthLabel} 나의 레슨 현황',
-                        style: OnepointDesign.heading),
-                    const SizedBox(height: 8),
-                    Text(
-                        widget.hasError
-                            ? '레슨 현황을 불러오지 못했습니다.'
-                            : loaded
-                                ? '이번 달 ${widget.role == 'coach' ? '진행' : ''} 완료 ${goal.count}회'
-                                : '레슨 현황을 확인하고 있어요.',
-                        style: const TextStyle(
-                            color: OnepointDesign.muted, fontSize: 12)),
-                  ])));
-    }
     return Card(
         margin: EdgeInsets.zero,
         child: Padding(
             padding: const EdgeInsets.all(16),
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _coupons,
+                stream: goal.eligible ? _coupons : null,
                 builder: (context, snapshot) {
                   final claimed = snapshot.data?.docs
                           .any((doc) => doc.id == 'monthly_${goal.monthKey}') ??
@@ -115,11 +94,18 @@ class _MonthlyLessonGoalCardState extends State<MonthlyLessonGoalCard>
                                 Text('${goal.monthLabel} 나의 레슨 현황',
                                     style: OnepointDesign.heading),
                                 const SizedBox(height: 6),
+                                const Text('월 목표 20회',
+                                    key: ValueKey('monthly-goal-target'),
+                                    style: TextStyle(
+                                        color: OnepointDesign.lime,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 5),
                                 Text(
                                     widget.hasError
                                         ? '레슨 현황을 불러오지 못했습니다.'
                                         : loaded
-                                            ? '수강 완료 ${goal.count}회 · 월 목표 ${MonthlyLessonGoal.target}회'
+                                            ? '${widget.role == 'coach' ? '진행 완료' : widget.role == 'student' ? '수강 완료' : '완료'} ${goal.count}회'
                                             : '레슨 현황을 확인하고 있어요.',
                                     style: const TextStyle(
                                         color: OnepointDesign.muted,
@@ -127,7 +113,7 @@ class _MonthlyLessonGoalCardState extends State<MonthlyLessonGoalCard>
                               ])),
                           const SizedBox(width: 12),
                           SizedBox.square(
-                              dimension: 52,
+                              dimension: 64,
                               child:
                                   Stack(alignment: Alignment.center, children: [
                                 SizedBox.expand(
@@ -136,19 +122,23 @@ class _MonthlyLessonGoalCardState extends State<MonthlyLessonGoalCard>
                                         backgroundColor: Colors.white10,
                                         color: OnepointDesign.lime,
                                         strokeWidth: 6)),
-                                Text(loaded ? '${goal.percent}%' : '—',
-                                    style: const TextStyle(fontSize: 13)),
+                                Text(loaded ? '${goal.percent}%' : '—%',
+                                    key: const ValueKey('monthly-goal-percent'),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700)),
                               ]))
                         ]),
                         const SizedBox(height: 14),
                         Text(
                             loaded
-                                ? goal.achieved
+                                ? goal.targetReached
                                     ? '100% 달성! 이번 달 목표를 이뤘어요.'
                                     : '100%까지 ${goal.remainingPercent}%, ${goal.remainingLessons}회 남았어요.'
                                 : '완료한 레슨만 월간 목표에 반영돼요.',
                             style: TextStyle(
-                                color: loaded && goal.achieved
+                                color: loaded && goal.targetReached
                                     ? OnepointDesign.lime
                                     : Colors.white70,
                                 fontSize: 12)),
@@ -159,13 +149,14 @@ class _MonthlyLessonGoalCardState extends State<MonthlyLessonGoalCard>
                                   style: TextStyle(
                                       color: OnepointDesign.muted,
                                       fontSize: 10))),
-                          TextButton(
-                              onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => CouponWalletScreen(
-                                          service: widget.service))),
-                              child: const Text('내 할인권'))
+                          if (goal.eligible)
+                            TextButton(
+                                onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => CouponWalletScreen(
+                                            service: widget.service))),
+                                child: const Text('내 할인권'))
                         ]),
                         if (loaded && goal.achieved)
                           FilledButton(

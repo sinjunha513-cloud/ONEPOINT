@@ -11,6 +11,31 @@ import 'support/fake_functions.dart';
 
 void main() {
   testWidgets(
+      'monthly target and percentage placeholder remain visible during loading or errors',
+      (tester) async {
+    final db = FakeFirebaseFirestore();
+    final auth =
+        MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'student'));
+    final service = CouponService(firestore: db, auth: auth);
+    for (final hasError in [false, true]) {
+      await tester.pumpWidget(MaterialApp(
+          theme: buildOnepointTheme(),
+          home: Scaffold(
+              body: MonthlyLessonGoalCard(
+                  lessons: const [],
+                  uid: 'student',
+                  role: 'student',
+                  loaded: false,
+                  hasError: hasError,
+                  service: service))));
+      await tester.pumpAndSettle();
+      expect(find.text('월 목표 20회'), findsOneWidget);
+      expect(find.text('—%'), findsOneWidget);
+      expect(find.text('10% 할인권 받기'), findsNothing);
+    }
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
       'coach sees monthly activity without a reward and cannot open the coupon wallet',
       (tester) async {
     final db = FakeFirebaseFirestore();
@@ -41,10 +66,11 @@ void main() {
                 hasError: false,
                 service: service))));
     await tester.pumpAndSettle();
-    expect(find.text('이번 달 진행 완료 20회'), findsOneWidget);
+    expect(find.text('진행 완료 20회'), findsOneWidget);
+    expect(find.text('월 목표 20회'), findsOneWidget);
     expect(find.text('10% 할인권 받기'), findsNothing);
     expect(find.text('내 할인권'), findsNothing);
-    expect(find.text('100%'), findsNothing);
+    expect(find.text('100%'), findsOneWidget);
     await tester.pumpWidget(MaterialApp(
         theme: buildOnepointTheme(),
         home: CouponWalletScreen(service: service, lessonId: 'lesson')));
