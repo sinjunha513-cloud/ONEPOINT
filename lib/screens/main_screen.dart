@@ -13,8 +13,11 @@ import '../widgets/onepoint_app_bar.dart';
 import '../widgets/onepoint_icon.dart';
 import '../config/onepoint_design.dart';
 import '../services/matching_service.dart';
+import '../services/coach_recommendation_service.dart';
 import '../models/lesson_badge.dart';
 import 'lesson_badges_screen.dart';
+import '../services/coupon_service.dart';
+import '../widgets/monthly_lesson_goal_card.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key, this.firestore, this.auth});
@@ -34,6 +37,11 @@ class _MainScreenState extends State<MainScreen> {
   late final LessonService _lessonService =
       LessonService(firestore: _db, auth: _auth);
   late final _lessons = MatchingService(firestore: _db, auth: _auth).lessons();
+  late final _recommendations = CoachRecommendationService();
+  late final _coupons = CouponService(firestore: _db, auth: _auth);
+  late final _recommendationProfile = _auth.currentUser == null
+      ? null
+      : _db.collection('users').doc(_auth.currentUser!.uid).snapshots();
   late Stream<QuerySnapshot<Map<String, dynamic>>> _coaches =
       _lessonService.getInstructors(selectedSport);
 
@@ -69,17 +77,11 @@ class _MainScreenState extends State<MainScreen> {
               final accepted = requests
                   .where((d) => d.data()['status'] == 'accepted')
                   .length;
-              final completed = requests
-                  .where((d) => d.data()['status'] == 'completed')
-                  .length;
               final badges = requests
                   .where((d) =>
                       d.data()['studentUid'] == _auth.currentUser?.uid &&
                       LessonBadge.fromLesson(d.id, d.data()) != null)
                   .length;
-              final progress = accepted + completed == 0
-                  ? 0.0
-                  : completed / (accepted + completed);
               final loaded = lessons.hasData && !lessons.hasError;
               return Center(
                 child: ConstrainedBox(
@@ -89,45 +91,20 @@ class _MainScreenState extends State<MainScreen> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _tile(
-                            onTap: () => _open(const LessonRequestsScreen()),
-                            child: Row(children: [
-                              Expanded(
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                    const Text('나의 레슨 현황',
-                                        style: OnepointDesign.heading),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                        lessons.hasError
-                                            ? '레슨 현황을 불러오지 못했습니다.'
-                                            : '완료한 레슨과 진행 상황을 확인해보세요.',
-                                        style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 11)),
-                                  ])),
-                              SizedBox.square(
-                                  dimension: 52,
-                                  child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        SizedBox.expand(
-                                            child: CircularProgressIndicator(
-                                                value: progress,
-                                                backgroundColor: Colors.white10,
-                                                color: OnepointDesign.lime,
-                                                strokeWidth: 6)),
-                                        Text(
-                                            loaded
-                                                ? '${(progress * 100).round()}%'
-                                                : '—',
-                                            style:
-                                                const TextStyle(fontSize: 13)),
-                                      ])),
-                            ]),
-                          ),
+                          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                              stream: _recommendationProfile,
+                              builder: (context, profile) =>
+                                  MonthlyLessonGoalCard(
+                                      lessons:
+                                          requests.map((doc) => doc.data()),
+                                      uid: _auth.currentUser?.uid ?? '',
+                                      role: profile.data?.data()?['role']
+                                              as String? ??
+                                          'student',
+                                      loaded: loaded,
+                                      hasError:
+                                          lessons.hasError || profile.hasError,
+                                      service: _coupons)),
                           const SizedBox(height: 14),
                           IntrinsicHeight(
                               child: Row(
@@ -385,20 +362,34 @@ class _MainScreenState extends State<MainScreen> {
       );
 
   Widget _recommendation(
-      AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot) {
+          AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: _recommendationProfile,
+          builder: (context, profile) =>
+              _recommendedCard(snapshot, profile.data?.data() ?? {}));
+
+  Widget _recommendedCard(
+      AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+      Map<String, dynamic> profile) {
     final docs = snapshot.data?.docs ?? [];
-    final coach = docs.isEmpty ? null : docs.first;
-    final name = coach?.data()['name'] as String? ??
+    final ranked = _recommendations.rank(
+        coaches: [for (final d in docs) CoachCandidate(d.id, d.data())],
+        profile: profile,
+        userUid: _auth.currentUser?.uid ?? '',
+        selectedSport: selectedSport);
+    final recommendation = ranked.isEmpty ? null : ranked.first;
+    final coach = recommendation?.coach;
+    final name = coach?.data['name'] as String? ??
         (snapshot.hasError
             ? '연결 확인'
             : snapshot.hasData
-                ? '코치 모집 중'
+                ? '맞춤 코치 준비 중'
                 : '불러오는 중');
     return _tile(
       color: OnepointDesign.lime,
       onTap: coach == null
           ? null
-          : () => _showInstructorDetail(context, coach.id, coach.data()),
+          : () => _showInstructorDetail(context, coach.id, coach.data),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('추천 코치',
             style: TextStyle(
@@ -407,7 +398,7 @@ class _MainScreenState extends State<MainScreen> {
                 fontWeight: FontWeight.w600)),
         const SizedBox(height: 16),
         SizedBox(
-            height: 144,
+            height: 128,
             child: Center(
                 child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 130, maxHeight: 130),
@@ -436,7 +427,7 @@ class _MainScreenState extends State<MainScreen> {
                                           fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 4),
                                   Text(
-                                      coach?.data()['sport'] as String? ??
+                                      coach?.data['sport'] as String? ??
                                           (selectedSport == '전체'
                                               ? '스포츠'
                                               : selectedSport),
@@ -445,6 +436,14 @@ class _MainScreenState extends State<MainScreen> {
                                 ]))),
                   ])),
             ))),
+        if (recommendation != null) ...[
+          const SizedBox(height: 8),
+          Text(recommendation.reasons.take(2).join(' · '),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.black87, fontSize: 11, height: 1.4)),
+        ],
       ]),
     );
   }

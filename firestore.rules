@@ -53,6 +53,9 @@ service cloud.firestore {
         && shortText(data.get('targetTier', ''), 50)
         && shortText(data.get('aspirations', ''), 5000)
         && shortText(data.get('videoUrl', ''), 4000)
+        && data.get('preferredSport', '') in ['', '축구', '농구', '테니스', '배드민턴', '클라이밍', '수영', '골프', '복싱', '유도', '주짓수', '태권도', '필라테스', '요가', '탁구', '댄스', '크로스핏', '피겨', '스키', '헬스']
+        && data.get('experienceLevel', '') in ['', '입문', '초급', '중급', '고급']
+        && shortText(data.get('learningGoal', ''), 500)
         && shortText(data.get('email', ''), 320)
         && data.get('requestedRole', 'student') in ['student', 'coach']
         && data.get('profileCompleted', false) is bool;
@@ -160,6 +163,7 @@ service cloud.firestore {
             || request.resource.data.email == request.auth.token.get('email', ''))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'name', 'profileImage', 'targetTier', 'aspirations', 'videoUrl',
+            'preferredSport', 'experienceLevel', 'learningGoal',
             'email', 'requestedRole', 'profileCompleted', 'updatedAt',
             'termsAccepted', 'privacyAccepted', 'consentVersion', 'consentedAt'])
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
@@ -224,6 +228,11 @@ service cloud.firestore {
       allow update: if advancesCatalog(resource.data.nextSequence)
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['nextSequence', 'lastBadgeId', 'updatedAt']);
+    }
+
+    match /users/{uid}/coupons/{couponId} {
+      allow read: if signedIn() && own(uid);
+      allow write: if false;
     }
 
     match /users/{uid}/notifications/{notificationId} {

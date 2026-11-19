@@ -1,8 +1,8 @@
-import {defineBoolean, defineInt, defineSecret, defineString} from "firebase-functions/params";
+import {defineBoolean, defineSecret, defineString} from "firebase-functions/params";
 import {HttpsError} from "firebase-functions/v2/https";
 
 export const preparationEnabled = defineBoolean("PAYMENT_PREPARATION_ENABLED", {default: false});
-export const platformFeeBps = defineInt("PLATFORM_FEE_BPS", {default: 1200});
+export {platformFeeBps} from "./fee_policy";
 export const paymentGatewayMode = defineString("PAYMENT_GATEWAY_MODE", {default: "toss-test"});
 export const tossTestClientKey = defineString("TOSS_TEST_CLIENT_KEY", {default: ""});
 export const checkoutBaseUrl = defineString("CHECKOUT_BASE_URL", {default: ""});

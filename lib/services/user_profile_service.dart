@@ -11,6 +11,9 @@ class UserProfileDraft {
     this.targetTier = '비기너',
     this.aspirations = '',
     this.videoUrl = '',
+    this.preferredSport = '',
+    this.experienceLevel = '',
+    this.learningGoal = '',
   });
 
   factory UserProfileDraft.fromMap(Map<String, dynamic> data) {
@@ -22,6 +25,9 @@ class UserProfileDraft {
       aspirations:
           data['aspirations'] as String? ?? data['bio'] as String? ?? '',
       videoUrl: data['videoUrl'] as String? ?? '',
+      preferredSport: data['preferredSport'] as String? ?? '',
+      experienceLevel: data['experienceLevel'] as String? ?? '',
+      learningGoal: data['learningGoal'] as String? ?? '',
     );
   }
 
@@ -30,6 +36,7 @@ class UserProfileDraft {
   final String targetTier;
   final String aspirations;
   final String videoUrl;
+  final String preferredSport, experienceLevel, learningGoal;
 
   Map<String, dynamic> toMap() => {
         'name': name.trim(),
@@ -37,6 +44,9 @@ class UserProfileDraft {
         'targetTier': targetTier,
         'aspirations': aspirations.trim(),
         'videoUrl': videoUrl.trim(),
+        'preferredSport': preferredSport,
+        'experienceLevel': experienceLevel,
+        'learningGoal': learningGoal.trim(),
       };
 }
 
@@ -192,6 +202,16 @@ class UserProfileService {
   }
 
   void _validate(UserProfileDraft profile) {
+    if (profile.preferredSport.isNotEmpty &&
+        !supportedSports.contains(profile.preferredSport)) {
+      throw ArgumentError('관심 종목을 확인해 주세요.');
+    }
+    if (!['', '입문', '초급', '중급', '고급'].contains(profile.experienceLevel)) {
+      throw ArgumentError('현재 운동 수준을 확인해 주세요.');
+    }
+    if (profile.learningGoal.trim().length > 500) {
+      throw ArgumentError('배우고 싶은 내용은 500자 이내로 입력해 주세요.');
+    }
     if (profile.name.trim().isEmpty) {
       throw ArgumentError('이름 / 닉네임을 입력해 주세요.');
     }

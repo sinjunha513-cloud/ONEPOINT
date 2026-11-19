@@ -1,3 +1,5 @@
+param([ValidateRange(0, 10000)][int]$PlatformFeeBps = 1200)
+
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $stage = [IO.Path]::GetFullPath((Join-Path $workspaceRoot '.dart_tool/platform-deploy'))
@@ -26,6 +28,7 @@ try {
   $package = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json
   $package.main = 'lib/src/platform_index.js'
   [IO.File]::WriteAllText($packagePath, ($package | ConvertTo-Json -Depth 30), $encoding)
+  [IO.File]::WriteAllText((Join-Path $stage 'functions/.env.onlyonepoint-lesson'), "PLATFORM_FEE_BPS=$PlatformFeeBps`n", $encoding)
   $configuration = @{
     firestore = @{ rules = 'firestore.rules' }
     storage = @{ rules = 'storage.rules' }

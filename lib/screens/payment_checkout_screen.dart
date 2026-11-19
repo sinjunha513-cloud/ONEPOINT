@@ -119,6 +119,13 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
                                       style: const TextStyle(
                                           fontSize: 32,
                                           fontWeight: FontWeight.bold)),
+                                  if (_payment!['discountAmount'] is num) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                        '월간 목표 할인권 10% · ${NumberFormat('#,###').format(_payment!['discountAmount'])}원 할인',
+                                        style: const TextStyle(
+                                            color: Color(0xFFC7F000))),
+                                  ],
                                   const SizedBox(height: 16),
                                   const Text(
                                       '서버에서 확인한 레슨 금액입니다. 결제 후 예약이 확정됩니다.',

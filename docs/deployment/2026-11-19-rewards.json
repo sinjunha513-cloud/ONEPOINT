@@ -1,0 +1,98 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-19T08:59:00.641Z",
+  "functions": [
+    {
+      "name": "syncPaymentCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T08:58:44.239041296Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLessonWithSlot",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T08:58:25.136918618Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "claimMonthlyCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T08:58:20.394391717Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "removeLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T08:58:25.082163604Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "applyLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T08:58:24.596984275Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T08:58:25.341237792Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "syncLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T08:58:45.673142027Z",
+      "region": "asia-northeast3"
+    }
+  ],
+  "authenticationProbes": [
+    {
+      "name": "claimMonthlyCoupon",
+      "status": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "applyLessonCoupon",
+      "status": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "removeLessonCoupon",
+      "status": 401,
+      "error": "UNAUTHENTICATED"
+    }
+  ],
+  "rules": {
+    "ruleset": "projects/onlyonepoint-lesson/rulesets/06499589-98bb-4222-b1ee-eb4b01ae1acc",
+    "matchesLocalSource": true,
+    "sha256": "200a36db2aa342073b4ac4863b40af46af1c92cd2744bbcd94455925810ad76a"
+  },
+  "sources": {
+    "functions/src/coupons.ts": "2e889dfaf60cd383154a7ca817a6812582382a5f7d1cd956c9d6ce33a991471f",
+    "functions/src/reward_domain.ts": "43525def39c1b8b319d3407aed42e8aa903121a463f3c8ba3485435134d1b3d8",
+    "functions/src/payment_service.ts": "467d0403d61297bd7bcba3d3ad253f86e5219095379c842803d75ca37e9c9b4a",
+    "functions/src/payment_lifecycle.ts": "f9c3e5f1eaae6a160bd2e786537b266e4df3845cafd3eac799671299a70b571a",
+    "functions/src/fee_policy.ts": "05ef8bfad193d4c87f950a79133f8c7022f314836d8ffae5fa8d6ce778ead384"
+  },
+  "validation": {
+    "flutterTests": 178,
+    "functionTests": 30,
+    "emulatorTests": 44,
+    "webStartupTests": 5,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed",
+    "focusedPaymentUiTests": 8
+  },
+  "rewardPolicy": {
+    "timezone": "Asia/Seoul",
+    "target": 10,
+    "frequency": "one coupon per calendar month",
+    "completedRole": "current account role only",
+    "validityDaysFromClaim": 30,
+    "discountPercent": 10,
+    "funding": "platform fee; original coach payout preserved",
+    "platformFeeBps": 1200
+  },
+  "paymentScope": "Coupon claim, reservation and cancellation reconciliation are deployed. Gateway remains disabled; discounted preparation/refund settlement source is tested and requires the optional payment codebase rollout with gateway configuration.",
+  "verification": "Management API and unauthenticated rejection only. No synthetic production lessons, coupons or payments."
+}

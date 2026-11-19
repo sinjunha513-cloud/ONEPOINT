@@ -25,6 +25,12 @@ export interface LessonDocument {
   currency?: "KRW";
   paymentId?: string;
   paymentStatus?: PaymentStatus;
+  couponId?: string;
+  originalPrice?: number;
+  discountAmount?: number;
+  platformFeeBps?: number;
+  platformFee?: number;
+  coachAmount?: number;
 }
 
 export interface PaymentDocument {
@@ -54,6 +60,9 @@ export interface PaymentDocument {
   paidAt: ServerTime | null;
   cancelledAt: ServerTime | null;
   refundedAt: ServerTime | null;
+  couponId?: string;
+  originalPrice?: number;
+  discountAmount?: number;
 }
 
 // Never expose this record through a callable or client-readable document.

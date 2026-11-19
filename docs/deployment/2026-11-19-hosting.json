@@ -1,31 +1,31 @@
 {
   "project": "onlyonepoint-lesson",
-  "verifiedAt": "2026-11-19T03:08:34.858Z",
+  "verifiedAt": "2026-11-19T09:02:02.279Z",
   "primaryUrl": "https://onlyonepoint-lesson.web.app",
   "sites": [
     {
       "site": "onlyonepoint-lesson",
       "url": "https://onlyonepoint-lesson.web.app",
-      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795057706263000",
-      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/80eb4a753034a305",
-      "releaseTime": "2026-11-19T03:08:26.263Z",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795078898727000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/7aff3c81a1a1525e",
+      "releaseTime": "2026-11-19T09:01:38.727Z",
       "checks": [
         {
           "file": "index.html",
           "status": 200,
-          "sha256": "b8742d0fe9072b147d148d27b163e67f22853251cf4164b97c3de9e932c9991d",
+          "sha256": "f8f23c2ebf711e7d81016704c6a4a00b0e7beaad5a47da9a7f3ae000cfaeba6a",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         },
         {
           "file": "main.dart.js",
           "status": 200,
-          "sha256": "0c3b744cfebabf0fcf9d203d07d233d39e23c060b3964a005ccbc8e1b6c8e841",
+          "sha256": "92863d6998cdfd19378a22c0423befbffe171f160accfd503bb98c67be2bfc1d",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         },
         {
           "file": "flutter_bootstrap.js",
           "status": 200,
-          "sha256": "d2bc7c3372f23debdc20e6b802b85acac3740b1f2305558d4bd5e6811acc27eb",
+          "sha256": "400ac9092fe7e92788c42cd41e1bd7f7a168f5c430267e1f98fa257ee96612d2",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         }
       ]
@@ -33,26 +33,26 @@
     {
       "site": "onlyonepoint-lesson-v2",
       "url": "https://onlyonepoint-lesson-v2.web.app",
-      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795057706469000",
-      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/0f377b4ffa9d2918",
-      "releaseTime": "2026-11-19T03:08:26.469Z",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795078898819000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/348849a1a9d63631",
+      "releaseTime": "2026-11-19T09:01:38.819Z",
       "checks": [
         {
           "file": "index.html",
           "status": 200,
-          "sha256": "b8742d0fe9072b147d148d27b163e67f22853251cf4164b97c3de9e932c9991d",
+          "sha256": "f8f23c2ebf711e7d81016704c6a4a00b0e7beaad5a47da9a7f3ae000cfaeba6a",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         },
         {
           "file": "main.dart.js",
           "status": 200,
-          "sha256": "0c3b744cfebabf0fcf9d203d07d233d39e23c060b3964a005ccbc8e1b6c8e841",
+          "sha256": "92863d6998cdfd19378a22c0423befbffe171f160accfd503bb98c67be2bfc1d",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         },
         {
           "file": "flutter_bootstrap.js",
           "status": 200,
-          "sha256": "d2bc7c3372f23debdc20e6b802b85acac3740b1f2305558d4bd5e6811acc27eb",
+          "sha256": "400ac9092fe7e92788c42cd41e1bd7f7a168f5c430267e1f98fa257ee96612d2",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         }
       ]
@@ -90,5 +90,35 @@
       "enterValidation": true,
       "pageErrors": []
     }
-  ]
+  ],
+  "inAppBrowserChecks": {
+    "origin": "https://onlyonepoint-lesson.web.app/",
+    "results": [
+      {
+        "scenario": "normal",
+        "rendered": true,
+        "retryAvailable": false,
+        "errors": []
+      },
+      {
+        "scenario": "restricted-inapp",
+        "rendered": true,
+        "retryAvailable": false,
+        "errors": []
+      },
+      {
+        "scenario": "hanging-cache",
+        "rendered": true,
+        "retryAvailable": false,
+        "errors": []
+      },
+      {
+        "scenario": "blocked-bootstrap",
+        "rendered": false,
+        "retryAvailable": true,
+        "errors": []
+      }
+    ],
+    "verification": "Chrome mobile emulation, including KAKAOTALK user agent with denied cache/service-worker access and unavailable WebGL. Not a physical-device test."
+  }
 }

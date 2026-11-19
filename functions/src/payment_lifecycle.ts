@@ -1,6 +1,7 @@
 import {FieldValue, Firestore, Timestamp} from "firebase-admin/firestore";
 import {HttpsError} from "firebase-functions/v2/https";
-import {calculateFees, documentId} from "./domain";
+import {documentId} from "./domain";
+import {remainingFees} from "./reward_domain";
 import {PaymentDocument, supportedSports} from "./models";
 import {Gateway, GatewayPayment} from "./toss_gateway";
 import {projectPayment} from "./payment_service";
@@ -124,7 +125,7 @@ export class PaymentLifecycle {
       const state = fullRefund ? "refunded" : refunded > 0 ? "partial_refunded" : "paid";
       if (firstPaid && lesson.status !== "accepted") throw new HttpsError("failed-precondition", "취소 또는 완료된 레슨은 확정할 수 없습니다.");
       if (refunded > 0 && payment.payoutStatus === "completed") throw new HttpsError("failed-precondition", "지급 완료 거래는 관리자 정산 조정이 필요합니다.");
-      const fees = verified.balanceAmount === 0 ? {platformFee: 0, coachAmount: 0} : calculateFees(verified.balanceAmount, {platformFeeBps: payment.platformFeeBps});
+      const fees = remainingFees(payment, verified.balanceAmount);
       const payoutStatus = fullRefund ? "cancelled" : lesson.status === "completed" ? "held" : "pending";
       const update: FirebaseFirestore.DocumentData = {
         paymentStatus: state, refundedAmount: refunded, paymentMethod: verified.paymentMethod,

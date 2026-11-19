@@ -8,6 +8,8 @@ import '../services/matching_service.dart';
 import '../services/payment_service.dart';
 import '../utils/korea_time.dart';
 import 'payment_checkout_screen.dart';
+import 'coupon_wallet_screen.dart';
+import '../services/coupon_service.dart';
 import 'payment_history_screen.dart';
 import 'chat_room_screen.dart';
 import 'lesson_badges_screen.dart';
@@ -19,6 +21,7 @@ import '../widgets/onepoint_lesson_icon.dart';
 class LessonRequestsScreen extends StatefulWidget {
   final MatchingService? service;
   final PaymentService? paymentService;
+  final CouponService? couponService;
   final CoachAvailabilityService? availabilityService;
   final String? initialLessonId;
 
@@ -26,6 +29,7 @@ class LessonRequestsScreen extends StatefulWidget {
     super.key,
     this.service,
     this.paymentService,
+    this.couponService,
     this.availabilityService,
     this.initialLessonId,
   });
@@ -40,6 +44,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
   final Set<String> _busyRequests = {};
   String _direction = '전체';
   late final _payments = widget.paymentService ?? PaymentService();
+  late final _coupons = widget.couponService ?? CouponService();
   CoachAvailabilityService? _availabilityInstance;
   CoachAvailabilityService get _availability => _availabilityInstance ??=
       widget.availabilityService ?? CoachAvailabilityService();
@@ -448,6 +453,13 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                   child: Text('레슨 금액 ${won(data['price'])}',
                       style: const TextStyle(
                           fontSize: 20, fontWeight: FontWeight.bold))),
+            if (data['couponId'] is String)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                      '10% 할인 적용 · ${won(data['originalPrice'])} → ${won(data['price'])}\n할인 ${won(data['discountAmount'])} · 플랫폼 수수료에서 부담',
+                      style: const TextStyle(
+                          color: OnepointDesign.lime, fontSize: 12))),
             if (status == 'completed') ...[
               const SizedBox(height: 12),
               Text(
@@ -553,6 +565,30 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                             ),
                     child: const Text('신청 취소'),
                   ),
+                if (status == 'accepted' &&
+                    isStudent &&
+                    data['price'] is num &&
+                    data['paymentId'] == null)
+                  OutlinedButton.icon(
+                      icon: const Icon(Icons.local_offer_outlined, size: 18),
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              if (data['couponId'] is String) {
+                                await _runAction(
+                                    lesson.id, () => _coupons.remove(lesson.id),
+                                    successMessage: '할인권 적용을 해제했습니다.');
+                              } else {
+                                await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => CouponWalletScreen(
+                                            service: _coupons,
+                                            lessonId: lesson.id)));
+                              }
+                            },
+                      label: Text(
+                          data['couponId'] is String ? '할인권 해제' : '할인권 적용')),
                 if (status == 'accepted' && isStudent && data['price'] is num)
                   FilledButton(
                       onPressed: busy

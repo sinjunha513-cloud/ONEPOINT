@@ -6,6 +6,7 @@ export interface PaymentTransaction {
   account(uid: string): Promise<AccountDocument | undefined>;
   instructor(uid: string): Promise<InstructorDocument | undefined>;
   payment(id: string): Promise<PaymentDocument | undefined>;
+  coupon?(uid: string, id: string): Promise<FirebaseFirestore.DocumentData | undefined>;
   createPayment(id: string, data: PaymentDocument): void;
   linkLesson(id: string, paymentId: string): void;
 }
@@ -35,6 +36,7 @@ export class FirestorePaymentStore implements PaymentStore {
       account: async (uid) => (await transaction.get(this.db.collection("users").doc(uid))).data() as AccountDocument | undefined,
       instructor: async (uid) => (await transaction.get(this.db.collection("instructors").doc(uid))).data() as InstructorDocument | undefined,
       payment: async (id) => (await transaction.get(this.db.collection("payments").doc(id))).data() as PaymentDocument | undefined,
+      coupon: async (uid, id) => (await transaction.get(this.db.collection("users").doc(uid).collection("coupons").doc(id))).data(),
       createPayment: (id, data) => { transaction.create(this.db.collection("payments").doc(id), data); },
       linkLesson: (id, paymentId) => { transaction.update(this.db.collection("lesson_requests").doc(id), {
         paymentId, paymentStatus: "pending", updatedAt: FieldValue.serverTimestamp(),

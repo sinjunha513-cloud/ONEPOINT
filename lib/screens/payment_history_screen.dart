@@ -457,9 +457,17 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                           if (widget.adminMode)
                             _row('수강생',
                                 '${_data['studentName'] ?? _data['studentUid']}'),
+                          if (_data['couponId'] is String) ...[
+                            _row('할인 전 레슨 금액', won(_data['originalPrice'])),
+                            _row('플랫폼 부담 할인액 (10%)',
+                                won(_data['discountAmount'])),
+                          ],
                           _row('결제 금액', won(_data['amount'])),
                           _row('환불 금액', won(_data['refundedAmount'])),
-                          _row('수수료율',
+                          _row(
+                              _data['couponId'] is String
+                                  ? '할인 전 수수료율'
+                                  : '수수료율',
                               '${(_data['platformFeeBps'] as num) / 100}%'),
                           _row(
                               '플랫폼 수수료',

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -70,6 +71,34 @@ class _InterruptedService extends _FakeAvailabilityService {
   }
 }
 
+class _EditableService extends _FakeAvailabilityService {
+  _EditableService(this.slot);
+  LessonSlot slot;
+  final changes = StreamController<List<LessonSlot>>.broadcast();
+  final edits = <({String? id, DateTime start, DateTime end})>[];
+  @override
+  Stream<List<LessonSlot>> mySlots() async* {
+    yield [slot];
+    yield* changes.stream;
+  }
+
+  @override
+  Future<String> saveSlot(
+      {String? slotId,
+      required DateTime startAt,
+      required DateTime endAt}) async {
+    edits.add((id: slotId, start: startAt, end: endAt));
+    slot = LessonSlot(
+        id: slotId!,
+        coachUid: 'coach',
+        startAt: startAt,
+        endAt: endAt,
+        status: 'available');
+    changes.add([slot]);
+    return slotId;
+  }
+}
+
 String _dayKey(DateTime date) =>
     'availability-day-${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
@@ -97,6 +126,58 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder,
 }
 
 void main() {
+  testWidgets(
+      'registered all-day slot can change date and time repeatedly with the same ID',
+      (tester) async {
+    final start = DateTime.utc(2036, 1, 9, 15);
+    final service = _EditableService(LessonSlot(
+        id: 'bulk-registered',
+        coachUid: 'coach',
+        startAt: start,
+        endAt: start.add(const Duration(days: 1)),
+        status: 'available'));
+    addTearDown(service.changes.close);
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+        theme: buildOnepointTheme(),
+        home: CoachAvailabilityScreen(service: service)));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('edit-availability-bulk-registered')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('save-edited-availability')));
+    await tester.pumpAndSettle();
+    expect(service.edits.single.end.difference(service.edits.single.start),
+        const Duration(days: 1));
+    await tester
+        .tap(find.byKey(const ValueKey('availability-slot-bulk-registered')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('edit-availability-date')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('11').last);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    for (final e in [('start', '09', '30'), ('end', '10', '30')]) {
+      await tester.tap(find.byKey(ValueKey('edit-availability-${e.$1}')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), e.$2);
+      await tester.enterText(find.byType(TextField).at(1), e.$3);
+      await tester.tap(find.text('선택'));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.byKey(const ValueKey('save-edited-availability')));
+    await tester.pumpAndSettle();
+    expect(service.edits, hasLength(2));
+    expect(service.edits.every((e) => e.id == 'bulk-registered'), isTrue);
+    expect(toKoreaTime(service.slot.startAt), DateTime.utc(2036, 1, 11, 9, 30));
+    expect(service.slot.endAt.difference(service.slot.startAt),
+        const Duration(hours: 1));
+    expect(find.byKey(const ValueKey('availability-slot-bulk-registered')),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'custom start time and retry retain only the unconfirmed selection',
       (tester) async {

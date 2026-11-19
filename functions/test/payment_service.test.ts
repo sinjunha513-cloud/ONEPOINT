@@ -16,6 +16,7 @@ class MemoryStore implements PaymentStore {
     ["coach", {role: "coach", profileCompleted: true}], ["admin", {role: "admin"}]]);
   instructors = new Map<string, InstructorDocument>([["coach", {status: "approved", uid: "coach", userId: "coach"}]]);
   payments = new Map<string, PaymentDocument>();
+  coupons = new Map<string, FirebaseFirestore.DocumentData>();
   failCommit = false;
   private queue: Promise<unknown> = Promise.resolve();
   now() { return Timestamp.fromMillis(1000); }
@@ -29,6 +30,7 @@ class MemoryStore implements PaymentStore {
         account: async (uid) => this.accounts.get(uid),
         instructor: async (uid) => this.instructors.get(uid),
         payment: async (id) => this.payments.get(id),
+        coupon: async (uid, id) => this.coupons.get(`${uid}/${id}`),
         createPayment: (id, payment) => { writes.push(() => this.payments.set(id, payment)); },
         linkLesson: (id, paymentId) => { writes.push(() => {
           this.lessons.set(id, {...this.lessons.get(id)!, paymentId, paymentStatus: "pending"});
@@ -48,6 +50,30 @@ function rejected(code: string) {
   return (error: unknown) => error instanceof HttpsError && error.code === code;
 }
 function fixture() { const store = new MemoryStore(); return {store, service: new PaymentService(store)}; }
+
+test("reserved discount preserves the original coach payout and cannot be forged or switched after preparation", async () => {
+  const {store, service} = fixture();
+  Object.assign(store.lessons.get("lesson")!, {price: 45000, originalPrice: 50000, discountAmount: 5000,
+    couponId: "monthly_202611", platformFeeBps: 1200, platformFee: 1000, coachAmount: 44000});
+  store.coupons.set("student/monthly_202611", {kind: "monthly_goal", rate: 10, status: "reserved",
+    reservedLessonId: "lesson", reservedAt: Timestamp.fromMillis(100), expiresAt: Timestamp.fromMillis(10000)});
+  const payment = await service.prepare("student", "lesson", {platformFeeBps: 2000});
+  assert.equal(payment.amount, 45000); assert.equal(payment.coachAmount, 44000); assert.equal(payment.platformFee, 1000);
+  assert.equal(payment.originalPrice, 50000); assert.equal(payment.discountAmount, 5000);
+  assert.equal((await service.prepare("student", "lesson", policy)).paymentId, payment.paymentId);
+  store.coupons.get("student/monthly_202611")!.reservedLessonId = "another";
+  await assert.rejects(service.prepare("student", "lesson", policy), rejected("failed-precondition"));
+  store.coupons.get("student/monthly_202611")!.reservedLessonId = "lesson";
+  store.lessons.get("lesson")!.coachAmount = 43000;
+  await assert.rejects(service.prepare("student", "lesson", policy), rejected("failed-precondition"));
+});
+
+test("a coach may pay as this lesson's learner, while self-booking remains invalid", async () => {
+  const {store, service} = fixture(); store.accounts.get("student")!.role = "coach";
+  assert.equal((await service.prepare("student", "lesson", policy)).coachAmount, 44000);
+  const self = fixture(); self.store.lessons.get("lesson")!.instructorUid = "student";
+  await assert.rejects(self.service.prepare("student", "lesson", policy), rejected("failed-precondition"));
+});
 
 test("request accepts only a lesson ID, never a caller's amount or status", () => {
   assert.equal(requestId({lessonId: "lesson"}, "lessonId"), "lesson");

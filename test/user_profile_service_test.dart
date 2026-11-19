@@ -15,6 +15,9 @@ void main() {
     targetTier: '프로 2',
     aspirations: '  다음 레슨이 기대돼요  ',
     videoUrl: '  https://example.com/practice  ',
+    preferredSport: '축구',
+    experienceLevel: '초급',
+    learningGoal: '  패스 자세를 배우고 싶어요  ',
   );
 
   setUp(() {

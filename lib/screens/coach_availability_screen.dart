@@ -5,6 +5,7 @@ import '../config/onepoint_design.dart';
 import '../models/lesson_slot.dart';
 import '../services/coach_availability_service.dart';
 import '../utils/korea_time.dart';
+import 'lesson_requests_screen.dart';
 
 class CoachAvailabilityScreen extends StatefulWidget {
   const CoachAvailabilityScreen({super.key, this.service});
@@ -20,6 +21,7 @@ class _CoachAvailabilityScreenState extends State<CoachAvailabilityScreen> {
   late final CoachAvailabilityService _service =
       widget.service ?? CoachAvailabilityService();
   final Set<String> _busy = <String>{};
+  late final _slots = _service.mySlots();
   List<AvailabilityRange>? _retryRanges;
   int _completed = 0;
   int _total = 0;
@@ -230,7 +232,7 @@ class _CoachAvailabilityScreenState extends State<CoachAvailabilityScreen> {
             _registrationStatus(),
           Expanded(
               child: StreamBuilder<List<LessonSlot>>(
-            stream: _service.mySlots(),
+            stream: _slots,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Center(
@@ -269,14 +271,31 @@ class _CoachAvailabilityScreenState extends State<CoachAvailabilityScreen> {
                     child: Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                        '한국 시간(KST) 기준입니다. 아래 버튼에서 가능한 날짜와 시간대를 한꺼번에 선택할 수 있습니다. 예약된 시간은 내 레슨에서 변경해 주세요.',
+                        '한국 시간(KST) 기준입니다. 등록한 일정을 누르거나 수정 버튼으로 날짜·시간을 언제든 바꿀 수 있어요. 예약된 시간은 레슨 일정 변경을 이용해 주세요.',
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   for (final slot in slots)
                     Card(
+                      key: ValueKey('availability-slot-${slot.id}'),
                       child: ListTile(
+                        onTap: _busy.contains(slot.id) || _busy.contains('bulk')
+                            ? null
+                            : slot.isAvailable
+                                ? () => _edit(slot)
+                                : slot.status == 'booked' &&
+                                        slot.lessonId != null
+                                    ? () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                LessonRequestsScreen(
+                                                    initialLessonId:
+                                                        slot.lessonId,
+                                                    availabilityService:
+                                                        _service)))
+                                    : null,
                         leading: Icon(
                           slot.status == 'available'
                               ? Icons.event_available_rounded
@@ -296,18 +315,47 @@ class _CoachAvailabilityScreenState extends State<CoachAvailabilityScreen> {
                                     CircularProgressIndicator(strokeWidth: 2),
                               )
                             : slot.status == 'available'
-                                ? PopupMenuButton<String>(
-                                    onSelected: (value) => value == 'edit'
-                                        ? _edit(slot)
-                                        : _delete(slot),
-                                    itemBuilder: (_) => const [
-                                      PopupMenuItem(
-                                          value: 'edit', child: Text('수정')),
-                                      PopupMenuItem(
-                                          value: 'delete', child: Text('삭제')),
-                                    ],
-                                  )
-                                : const Icon(Icons.lock_outline_rounded),
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                        TextButton(
+                                            key: ValueKey(
+                                                'edit-availability-${slot.id}'),
+                                            style: TextButton.styleFrom(
+                                                minimumSize: const Size(44, 40),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8)),
+                                            onPressed: _busy.contains('bulk')
+                                                ? null
+                                                : () => _edit(slot),
+                                            child: const Text('수정')),
+                                        IconButton(
+                                            tooltip: '일정 삭제',
+                                            constraints:
+                                                const BoxConstraints.tightFor(
+                                                    width: 36, height: 40),
+                                            onPressed: _busy.contains('bulk')
+                                                ? null
+                                                : () => _delete(slot),
+                                            icon: const Icon(
+                                                Icons.delete_outline_rounded,
+                                                size: 19)),
+                                      ])
+                                : slot.status == 'booked' &&
+                                        slot.lessonId != null
+                                    ? TextButton(
+                                        onPressed: () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) =>
+                                                    LessonRequestsScreen(
+                                                        initialLessonId:
+                                                            slot.lessonId,
+                                                        availabilityService:
+                                                            _service))),
+                                        child: const Text('예약 변경'))
+                                    : const Icon(Icons.lock_outline_rounded),
                       ),
                     ),
                 ],
@@ -968,20 +1016,22 @@ class _SlotEditorDialogState extends State<_SlotEditorDialog> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null && mounted) setState(() => _date = picked);
   }
 
   Future<void> _pickTime(bool start) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: start ? _start : _end,
+      initialEntryMode: TimePickerEntryMode.input,
+      cancelText: '닫기',
+      confirmText: '선택',
       helpText: start ? '시작 시간 (KST)' : '종료 시간 (KST)',
-      builder: (context, child) => Theme(
-        data: _availabilityPickerTheme(context),
-        child: child!,
-      ),
+      builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: Theme(data: _availabilityPickerTheme(context), child: child!)),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         if (start) {
           _start = picked;
@@ -1003,7 +1053,7 @@ class _SlotEditorDialogState extends State<_SlotEditorDialog> {
       hour: _end.hour,
       minute: _end.minute,
     );
-    if (endAt.isBefore(startAt)) endAt = endAt.add(const Duration(days: 1));
+    if (!endAt.isAfter(startAt)) endAt = endAt.add(const Duration(days: 1));
     if (!endAt.isAfter(startAt)) {
       setState(() => _error = '종료 시간은 시작 시간보다 늦어야 합니다.');
       return;
@@ -1027,13 +1077,16 @@ class _SlotEditorDialogState extends State<_SlotEditorDialog> {
         title: Text(widget.slot == null ? '가능 시간 추가' : '가능 시간 수정'),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
+          child: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('한국 시간(KST) 기준입니다. 종료가 시작보다 이르면 다음 날 종료로 등록됩니다.'),
+              const Text(
+                  '한국 시간(KST) 기준입니다. 종료가 시작보다 이르면 다음 날 종료로, 시작과 종료가 같으면 24시간으로 등록됩니다.'),
               const SizedBox(height: 16),
               OutlinedButton.icon(
+                key: const ValueKey('edit-availability-date'),
                 onPressed: _pickDate,
                 icon: const Icon(Icons.calendar_month_rounded),
                 label: Text(formatKoreaDate(_date)),
@@ -1043,6 +1096,7 @@ class _SlotEditorDialogState extends State<_SlotEditorDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      key: const ValueKey('edit-availability-start'),
                       onPressed: () => _pickTime(true),
                       child: Text('시작 ${_start.format(context)}'),
                     ),
@@ -1053,6 +1107,7 @@ class _SlotEditorDialogState extends State<_SlotEditorDialog> {
                   ),
                   Expanded(
                     child: OutlinedButton(
+                      key: const ValueKey('edit-availability-end'),
                       onPressed: () => _pickTime(false),
                       child: Text('종료 ${_end.format(context)}'),
                     ),
@@ -1064,14 +1119,17 @@ class _SlotEditorDialogState extends State<_SlotEditorDialog> {
                 Text(_error!, style: const TextStyle(color: Colors.redAccent)),
               ],
             ],
-          ),
+          )),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('닫기'),
           ),
-          FilledButton(onPressed: _submit, child: const Text('저장')),
+          FilledButton(
+              key: const ValueKey('save-edited-availability'),
+              onPressed: _submit,
+              child: const Text('저장')),
         ],
       );
 }

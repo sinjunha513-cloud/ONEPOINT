@@ -62,7 +62,7 @@ async function createRequest(request: CallableRequest, withSlot: boolean) {
     const existing = await tx.get(pair);
     const slotRef = withSlot ? db().collection("instructors").doc(coachUid).collection("availability").doc(documentId(input.slotId, "slotId")) : null;
     const slot = slotRef ? (await tx.get(slotRef)).data() : null;
-    if (!["student", "admin"].includes(student.role) || coach.role !== "coach" || profile?.status !== "approved" || profile.uid !== coachUid || !(supportedSports as readonly string[]).includes(profile.sport)) throw new HttpsError("permission-denied", "신청 가능한 수강생과 승인 코치가 필요합니다.");
+    if (!["student", "coach", "admin"].includes(student.role) || coach.role !== "coach" || profile?.status !== "approved" || profile.uid !== coachUid || !(supportedSports as readonly string[]).includes(profile.sport)) throw new HttpsError("permission-denied", "신청 가능한 회원과 승인 코치가 필요합니다.");
     if (existing.exists) throw new HttpsError("already-exists", "진행 중인 레슨이 있습니다.");
     if (slotRef && (!slot || slot.status !== "available" || !(slot.startAt instanceof Timestamp) || slot.startAt.toMillis() <= Date.now())) throw new HttpsError("failed-precondition", "예약 가능한 시간이 아닙니다.");
     const ids = [uid, coachUid].sort();

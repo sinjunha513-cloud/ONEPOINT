@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "pretest": "npm run build --prefix ../functions",
-    "test": "node run-emulators.mjs"
+    "test": "node run-emulators.mjs",
+    "test:web": "node --test web-startup.test.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",

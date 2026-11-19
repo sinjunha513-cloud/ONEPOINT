@@ -14,11 +14,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="ONEPOINT">
-  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- 💡 ico 및 png 호환성 캐시 방지 적용 -->
   <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=3"/>
-  <link rel="icon" type="image/png" href="favicon.png?v=3"/>
+  <link rel="icon" type="image/png" href="icons/Icon-192.png"/>
 
   <!-- 💡 브라우저 탭 이름 -->
   <title>ONEPOINT</title>
@@ -87,50 +87,57 @@
       bottom: 0;
       right: 0;
     }
+    #app-loading {
+      position: fixed; inset: 0; z-index: 10000;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 18px; padding: 28px; box-sizing: border-box;
+      color: #fff; background: #070101;
+      font-family: system-ui, -apple-system, sans-serif; text-align: center;
+    }
+    #app-loading[hidden] { display: none; }
+    .loading-brand { font-size: 32px; font-weight: 700; letter-spacing: -1.5px; }
+    .loading-brand span { color: #24a9ff; }
+    #loading-message { color: #b9b9b9; font-size: 14px; line-height: 1.6; margin: 0; }
+    #startup-retry { border: 0; border-radius: 14px; padding: 14px 24px;
+      font: inherit; font-weight: 600; color: #000; background: #c7f000; cursor: pointer; }
   </style>
 
   <script id="splash-screen-script">
     function removeSplashFromWeb() {
       document.getElementById("splash")?.remove();
       document.getElementById("splash-branding")?.remove();
-      document.body.style.background = "transparent";
     }
+    window.onepointStartup = (() => {
+      let ready = false;
+      const fail = () => {
+        if (ready) return;
+        const message = document.getElementById('loading-message');
+        if (message) message.textContent = '화면을 불러오지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.';
+        const retry = document.getElementById('startup-retry');
+        if (retry) retry.hidden = false;
+      };
+      const timer = setTimeout(fail, 30000);
+      window.addEventListener('flutter-first-frame', () => {
+        ready = true; clearTimeout(timer);
+        document.getElementById('app-loading')?.remove();
+      }, {once: true});
+      window.addEventListener('error', fail);
+      window.addEventListener('unhandledrejection', fail);
+      return {fail, retry() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('appVersion', '20261119-mobile-startup-v2');
+        url.searchParams.set('render', 'compat');
+        window.location.replace(url.toString());
+      }};
+    })();
   </script>
 </head>
 <body>
-  <script>
-    // Remove caches left by older Flutter Web builds before loading the app.
-    // An active legacy service worker can otherwise keep serving an obsolete
-    // main.dart.js even after Firebase Hosting has received a new release.
-    (async () => {
-      const cleanupKey = 'onepoint-web-cache-cleanup-v8';
-      let hadLegacyWorker = false;
-
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        hadLegacyWorker = registrations.length > 0 || !!navigator.serviceWorker.controller;
-        await Promise.all(registrations.map((registration) => registration.unregister()));
-      }
-
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-      }
-
-      if (hadLegacyWorker && !sessionStorage.getItem(cleanupKey)) {
-        sessionStorage.setItem(cleanupKey, 'done');
-        const refreshedUrl = new URL(window.location.href);
-        refreshedUrl.searchParams.set('appVersion', '20261119-activity-inbox-v1');
-        window.location.replace(refreshedUrl.toString());
-        return;
-      }
-
-      sessionStorage.removeItem(cleanupKey);
-      const bootstrap = document.createElement('script');
-      bootstrap.src = 'flutter_bootstrap.js?v=20261119-activity-inbox-v1';
-      bootstrap.async = true;
-      document.body.appendChild(bootstrap);
-    })();
-  </script>
+  <div id="app-loading" role="status" aria-live="polite">
+    <div class="loading-brand">one<span>•</span>point</div>
+    <p id="loading-message">ONEPOINT를 불러오는 중이에요.</p>
+    <button id="startup-retry" hidden onclick="window.onepointStartup.retry()">다시 시도</button>
+  </div>
+  <script src="flutter_bootstrap.js?v=20261119-mobile-startup-v2" async onerror="window.onepointStartup.fail()"></script>
 </body>
 </html>

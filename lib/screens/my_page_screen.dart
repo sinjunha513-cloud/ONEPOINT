@@ -21,6 +21,8 @@ import 'login_screen.dart';
 import 'payment_history_screen.dart';
 import 'signature_badge_catalog_screen.dart';
 import 'signup_screen.dart';
+import 'coupon_wallet_screen.dart';
+import '../services/coupon_service.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen(
@@ -546,6 +548,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
           children: [
             _action(
                 '프로필 및 정보 수정하기', Icons.edit_outlined, () => _editProfile(data)),
+            _action(
+                '내 할인권',
+                Icons.local_offer_outlined,
+                () => _open(CouponWalletScreen(
+                    service: CouponService(firestore: _db, auth: _auth)))),
             _action(
                 role == 'admin'
                     ? '결제 관리'

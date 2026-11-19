@@ -7,3 +7,4 @@ export {adminManageAccount, validateCareerPdf} from "./admin_accounts";
 export {projectUserPublicProfile, projectInstructorPublicProfile, requestLesson, requestLessonWithSlot, completeLesson, setFeedLiked, deleteVideo} from "./security_workflows";
 export {saveAvailabilitySlot, saveAvailabilitySlots, deleteAvailabilitySlot, rescheduleLesson, releaseCancelledSlot, projectPublicAvailability} from "./scheduling";
 export {notifyLessonActivity, notifyChatMessage, notifyLessonFeedback, notifyCoachReview, notifyFeedReaction, syncMyNotifications} from "./notifications";
+export {claimMonthlyCoupon, applyLessonCoupon, removeLessonCoupon, syncLessonCoupon, syncPaymentCoupon} from "./coupons";

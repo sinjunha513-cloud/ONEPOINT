@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../config/onepoint_design.dart';
+import '../config/sports.dart';
+import '../services/coach_recommendation_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/user_profile_service.dart';
@@ -42,6 +44,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _profileImageController = TextEditingController();
   final _aspirationsController = TextEditingController();
   final _videoUrlController = TextEditingController();
+  final _learningGoalController = TextEditingController();
+  String _preferredSport = '', _experienceLevel = '';
   // Opening a new registration form does not access Firebase.
   late final _profiles =
       UserProfileService(auth: widget.auth, firestore: widget.firestore);
@@ -106,6 +110,14 @@ class _SignupScreenState extends State<SignupScreen> {
     _selectedTier = profile.targetTier;
     _aspirationsController.text = profile.aspirations;
     _videoUrlController.text = profile.videoUrl;
+    _preferredSport = supportedSports.contains(profile.preferredSport)
+        ? profile.preferredSport
+        : '';
+    _experienceLevel =
+        CoachRecommendationService.levels.contains(profile.experienceLevel)
+            ? profile.experienceLevel
+            : '';
+    _learningGoalController.text = profile.learningGoal;
   }
 
   Future<void> _loadProfile() async {
@@ -147,6 +159,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _profileImageController.dispose();
     _aspirationsController.dispose();
     _videoUrlController.dispose();
+    _learningGoalController.dispose();
     super.dispose();
   }
 
@@ -202,6 +215,9 @@ class _SignupScreenState extends State<SignupScreen> {
       targetTier: _selectedTier,
       aspirations: _aspirationsController.text,
       videoUrl: _videoUrlController.text,
+      preferredSport: _preferredSport,
+      experienceLevel: _experienceLevel,
+      learningGoal: _learningGoalController.text,
     );
     try {
       if (widget.isEditing) {
@@ -377,6 +393,35 @@ class _SignupScreenState extends State<SignupScreen> {
                         _input('소개 / 연습 영상 URL', 'profile-video',
                             _videoUrlController,
                             hint: 'https://...'),
+                        if (widget.role == 'student') ...[
+                          const SizedBox(height: 28),
+                          _sectionTitle('맞춤 코치 추천 (선택)'),
+                          const SizedBox(height: 8),
+                          const Text(
+                              '관심 종목과 현재 수준, 배우고 싶은 내용으로 코치를 추천해요. 나중에 프로필에서 바꿀 수 있어요.',
+                              style: TextStyle(
+                                  color: OnepointDesign.muted,
+                                  fontSize: 12,
+                                  height: 1.5)),
+                          const SizedBox(height: 16),
+                          _preferenceDropdown(
+                              'profile-preferred-sport',
+                              '관심 종목',
+                              _preferredSport,
+                              supportedSports,
+                              (v) => setState(() => _preferredSport = v)),
+                          const SizedBox(height: 16),
+                          _preferenceDropdown(
+                              'profile-experience-level',
+                              '현재 운동 수준',
+                              _experienceLevel,
+                              CoachRecommendationService.levels,
+                              (v) => setState(() => _experienceLevel = v)),
+                          const SizedBox(height: 16),
+                          _input('배우고 싶은 기술 / 레슨 목표', 'profile-learning-goal',
+                              _learningGoalController,
+                              hint: '예: 축구 패스와 드리블 자세를 배우고 싶어요.', maxLines: 3),
+                        ],
                         if (!widget.isEditing) ...[
                           const SizedBox(height: 24),
                           _sectionTitle('필수 동의'),
@@ -428,6 +473,28 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget _sectionTitle(String text) => Text(text,
       style: const TextStyle(
           color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600));
+
+  Widget _preferenceDropdown(String key, String label, String value,
+          List<String> values, ValueChanged<String> onChanged) =>
+      DropdownButtonFormField<String>(
+          key: ValueKey(key),
+          initialValue: value,
+          isExpanded: true,
+          dropdownColor: OnepointDesign.surface,
+          style: OnepointDesign.control.copyWith(color: Colors.white),
+          decoration: InputDecoration(
+              labelText: label,
+              filled: true,
+              fillColor: OnepointDesign.surface,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none)),
+          items: [
+            const DropdownMenuItem(value: '', child: Text('아직 정하지 않았어요')),
+            for (final item in values)
+              DropdownMenuItem(value: item, child: Text(item))
+          ],
+          onChanged: _isLoading ? null : (value) => onChanged(value ?? ''));
 
   Widget _consentRow(String label, String key, bool value,
           ValueChanged<bool> onChanged, String content) =>

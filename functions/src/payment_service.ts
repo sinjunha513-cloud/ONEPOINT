@@ -3,6 +3,7 @@ import {HttpsError} from "firebase-functions/v2/https";
 import {calculateFees, paymentIdFor, validateLesson} from "./domain";
 import {FeePolicy, PaymentDocument} from "./models";
 import {PaymentStore} from "./store";
+import {discountedQuote} from "./reward_domain";
 
 export class PaymentService {
   constructor(private readonly store: PaymentStore,
@@ -18,7 +19,8 @@ export class PaymentService {
       const coach = await transaction.account(lesson.instructorUid);
       const instructor = await transaction.instructor(lesson.instructorUid);
       const existing = await transaction.payment(paymentId);
-      if (student?.role !== "student" || student.profileCompleted !== true ||
+      const coupon = lesson.couponId ? await transaction.coupon?.(uid, lesson.couponId) : undefined;
+      if (!["student", "coach"].includes(student?.role ?? "") || student?.profileCompleted !== true ||
           coach?.role !== "coach" || instructor?.status !== "approved" ||
           instructor.uid !== lesson.instructorUid || instructor.userId !== lesson.instructorUid) {
         throw new HttpsError("failed-precondition", "Completed student and approved coach accounts are required.");
@@ -26,11 +28,21 @@ export class PaymentService {
       if (lesson.paymentId && lesson.paymentId !== paymentId) {
         throw new HttpsError("failed-precondition", "Lesson has a different payment reference.");
       }
+      const quote = lesson.couponId ? discountedQuote(lesson.originalPrice!, {platformFeeBps: lesson.platformFeeBps!}) : null;
+      if (quote && (!coupon || coupon.kind !== "monthly_goal" || coupon.rate !== 10 ||
+          coupon.status !== "reserved" || coupon.reservedLessonId !== lessonId ||
+          !(coupon.reservedAt instanceof Timestamp) || !(coupon.expiresAt instanceof Timestamp) ||
+          coupon.reservedAt.toMillis() >= coupon.expiresAt.toMillis() ||
+          quote.price !== amount || quote.discountAmount !== lesson.discountAmount ||
+          quote.coachAmount !== lesson.coachAmount || quote.platformFee !== lesson.platformFee)) {
+        throw new HttpsError("failed-precondition", "Coupon reservation or settlement is invalid.");
+      }
       if (existing) {
         if (existing.lessonId !== lessonId || existing.studentUid !== uid ||
             existing.instructorUid !== lesson.instructorUid || existing.amount !== amount ||
             existing.currency !== "KRW" || existing.mode !== this.gatewayMode || existing.paymentStatus !== "pending" ||
-            lesson.paymentId !== paymentId || lesson.paymentStatus !== "pending") {
+            lesson.paymentId !== paymentId || lesson.paymentStatus !== "pending" ||
+            (existing.couponId ?? null) !== (lesson.couponId ?? null)) {
           throw new HttpsError("failed-precondition", "Existing payment cannot be reused or its price has changed.");
         }
         // Preserve the fee policy and timestamp captured by the first request.
@@ -42,7 +54,11 @@ export class PaymentService {
       const now = this.store.now();
       const payment: PaymentDocument = {
         schemaVersion: 1, paymentId, lessonId, studentUid: uid, instructorUid: lesson.instructorUid,
-        amount, currency: "KRW", ...calculateFees(amount, policy),
+        amount, currency: "KRW", ...(quote ? {
+          platformFeeBps: quote.platformFeeBps, platformFeeRate: quote.platformFeeRate,
+          platformFee: quote.platformFee, coachAmount: quote.coachAmount,
+          couponId: lesson.couponId, originalPrice: quote.originalPrice, discountAmount: quote.discountAmount,
+        } : calculateFees(amount, policy)),
         paymentStatus: "pending", payoutStatus: "pending", provider: this.gatewayMode === "demo" ? "demo" : "toss", mode: this.gatewayMode,
         providerOrderId: paymentId, paymentMethod: null, refundedAmount: 0,
         createdAt: now, updatedAt: now, paidAt: null, cancelledAt: null, refundedAt: null,
@@ -76,6 +92,7 @@ export function projectPayment(payment: PaymentDocument, coachOnly = false): Rec
     platformFee: payment.platformFee, coachAmount: payment.coachAmount,
     paymentStatus: payment.paymentStatus, payoutStatus: payment.payoutStatus,
     refundedAmount: payment.refundedAmount,
+    ...(payment.couponId ? {couponId: payment.couponId, originalPrice: payment.originalPrice, discountAmount: payment.discountAmount} : {}),
     refundStatus: payment.refundStatus ?? "none",
     netPlatformFee: payment.netPlatformFee ?? payment.platformFee,
     netCoachAmount: payment.netCoachAmount ?? payment.coachAmount,
