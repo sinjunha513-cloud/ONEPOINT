@@ -64,6 +64,29 @@ void main() {
     expect((await service.approvedInstructors('축구').first).docs, isEmpty);
   });
 
+  test(
+      'all-sport discovery includes every approved coach and filters review states',
+      () async {
+    for (final entry in {
+      'football': ('축구', 'approved'),
+      'badminton': ('배드민턴', 'approved'),
+      'yoga': ('요가', 'approved'),
+      'waiting': ('축구', 'pending'),
+      'rejected': ('요가', 'rejected'),
+    }.entries) {
+      await db.collection('public_instructors').doc(entry.key).set({
+        'sport': entry.value.$1,
+        'status': entry.value.$2,
+      });
+    }
+    final service = serviceFor('applicant');
+    final all = await service.approvedInstructors('전체').first;
+    expect(all.docs.map((doc) => doc.id),
+        unorderedEquals(['football', 'badminton', 'yoga']));
+    final badminton = await service.approvedInstructors('배드민턴').first;
+    expect(badminton.docs.single.id, 'badminton');
+  });
+
   test('admin approval publishes the correct sport and grants coach role',
       () async {
     await submit(serviceFor('applicant'));

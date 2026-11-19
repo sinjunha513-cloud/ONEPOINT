@@ -1,3 +1,4 @@
+import '../config/onepoint_design.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -387,7 +388,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               ? null
                               : () => _reviewCoach(doc.id, approve: true),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF38BDF8),
+                            backgroundColor: OnepointDesign.lime,
                             foregroundColor: Colors.black,
                           ),
                           child: const Text('승인 완료',

@@ -6,6 +6,9 @@ import '../services/feed_service.dart';
 import '../services/video_upload_service.dart';
 import '../widget/video_item_widget.dart';
 import 'video_upload_screen.dart';
+import '../widgets/onepoint_app_bar.dart';
+import '../widgets/onepoint_icon.dart';
+import '../config/onepoint_design.dart';
 
 class ShortformFeedScreen extends StatefulWidget {
   const ShortformFeedScreen({
@@ -44,7 +47,7 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF171B24),
+        backgroundColor: const Color(0xFF252525),
         title: const Text('숏폼 영상 삭제'),
         content: Text(
           title.trim().isEmpty
@@ -86,7 +89,8 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('원포인트 피드')),
+        appBar: const OnepointAppBar(
+            title: '레슨 영상 피드', sectionSubtitle: 'TRAINING FEED'),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: _firestore
               .collection('feed_videos')
@@ -107,11 +111,12 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.video_library_outlined, size: 52),
+                      OnepointIcon('feed-empty', width: 65, height: 65),
                       SizedBox(height: 14),
                       Text(
                         '등록된 영상이 없습니다.\n영상 추가 버튼으로 첫 숏폼을 올려 보세요.',
                         textAlign: TextAlign.center,
+                        style: OnepointDesign.heading,
                       ),
                     ],
                   ),
@@ -195,7 +200,7 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
                               color: Colors.black,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(0xFF334155),
+                                color: const Color(0xFF373737),
                               ),
                               boxShadow: const [
                                 BoxShadow(
@@ -219,10 +224,10 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
                             width: contentWidth,
                             padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF171B24),
+                              color: const Color(0xFF252525),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: const Color(0xFF2B3545),
+                                color: const Color(0xFF373737),
                               ),
                             ),
                             child: Row(
@@ -317,7 +322,7 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
           },
         ),
         floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: const Color(0xFF38BDF8),
+          backgroundColor: OnepointDesign.lime,
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const VideoUploadScreen()),

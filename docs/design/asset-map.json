@@ -1,0 +1,264 @@
+[
+  {
+    "asset": "nav-home-idle.png",
+    "source": "Onepoint_모바일_피드-1.svg",
+    "viewport": [
+      40,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-home-active.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      40,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-feed-idle.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      119,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-feed-active.png",
+    "source": "Onepoint_모바일_피드-1.svg",
+    "viewport": [
+      119,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-upload-idle.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      191,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-upload-active.png",
+    "source": "Onepoint_모바일_업로드.svg",
+    "viewport": [
+      191,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-chat-idle.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      264,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-chat-active.png",
+    "source": "Onepoint_모바일_채팅.svg",
+    "viewport": [
+      264,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-profile-idle.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      341,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "nav-profile-active.png",
+    "source": "Onepoint_모바일_채팅-3.svg",
+    "viewport": [
+      341,
+      852,
+      48,
+      46
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "lock.png",
+    "source": "at-icons_lock.svg",
+    "viewport": [
+      0,
+      0,
+      33,
+      33
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "badminton.png",
+    "source": "icon-park-solid_badminton.svg",
+    "viewport": [
+      0,
+      0,
+      22,
+      22
+    ],
+    "scale": 3,
+    "backgroundRemoved": [
+      37,
+      37,
+      37
+    ]
+  },
+  {
+    "asset": "badge.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      317,
+      81,
+      29,
+      36
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "bell.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      379,
+      87,
+      27,
+      27
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "video-upload.png",
+    "source": "Onepoint_모바일_업로드.svg",
+    "viewport": [
+      184,
+      370,
+      63,
+      36
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "chat-empty.png",
+    "source": "Onepoint_모바일_채팅.svg",
+    "viewport": [
+      185,
+      387,
+      57,
+      54
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "feed-empty.png",
+    "source": "Onepoint_모바일_피드-2.svg",
+    "viewport": [
+      182,
+      376,
+      65,
+      65
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "profile-avatar.png",
+    "source": "Onepoint_모바일_채팅-3.svg",
+    "viewport": [
+      49,
+      156,
+      55,
+      51
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "trophy.png",
+    "source": "Onepoint_모바일_채팅-3.svg",
+    "viewport": [
+      198,
+      423,
+      34,
+      35
+    ],
+    "scale": 3
+  },
+  {
+    "asset": "sport-football.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      56,
+      639,
+      22,
+      22
+    ],
+    "scale": 3,
+    "backgroundRemoved": [
+      199,
+      240,
+      0
+    ]
+  },
+  {
+    "asset": "sport-basketball.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      154,
+      639,
+      22,
+      22
+    ],
+    "scale": 3,
+    "backgroundRemoved": [
+      37,
+      37,
+      37
+    ]
+  },
+  {
+    "asset": "sport-tennis.png",
+    "source": "Onepoint_모바일_홈.svg",
+    "viewport": [
+      252,
+      640,
+      22,
+      22
+    ],
+    "scale": 3,
+    "backgroundRemoved": [
+      37,
+      37,
+      37
+    ]
+  }
+]

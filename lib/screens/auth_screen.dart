@@ -89,8 +89,6 @@ class _AuthScreenState extends State<AuthScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
                 ),
                 child: Text(
                   isSignUpMode ? '가입하기' : '로그인',

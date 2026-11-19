@@ -1,3 +1,4 @@
+import '../config/onepoint_design.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -7,10 +8,10 @@ import '../services/lesson_badge_service.dart';
 import '../widget/lesson_badge_emblem.dart';
 import 'lesson_requests_screen.dart';
 
-const _background = Color(0xFF070D1B);
-const _surface = Color(0xFF101A2C);
-const _accent = Color(0xFFC6FF00);
-const _muted = Color(0xFFABB5C8);
+const _background = OnepointDesign.background;
+const _surface = OnepointDesign.surface;
+const _accent = OnepointDesign.lime;
+const _muted = OnepointDesign.muted;
 
 class LessonBadgesScreen extends StatefulWidget {
   final LessonBadgeService? service;

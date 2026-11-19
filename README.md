@@ -3,6 +3,14 @@
 
 **ONEPOINT** is a mobile-focused sports lesson platform under development, designed to connect students with coaches for personalized, one-on-one sports lessons.
 
+> 🚧 **실시간 업데이트 중 · Active development**
+>
+> 현재 UI와 주요 기능을 지속적으로 개발·개선하고 있으며, 변경 사항을 수시로 반영하고 있습니다.
+>
+> **최근 업데이트 (2026-11-19):** Figma 디자인, 날짜·시간 등록, 로그인, 알림함 및 내 레슨 기능 개선.
+>
+> [모바일·PC 웹에서 최신 버전 확인하기](https://onlyonepoint-lesson.web.app)
+
 > **Project status:** Active development. This repository is a development snapshot, not a production-ready release. Payment integration code exists, but live payment configuration and end-to-end production readiness have not been verified.
 
 ## Outputs
@@ -117,7 +125,7 @@ cd functions
 npm ci
 ```
 
-Configure Firebase project settings and local environment values separately. The repository does not provide credentials or a turnkey production environment. Some local resources, including font files, were excluded from this source snapshot; restore required assets from your own licensed local copies if needed.
+Configure Firebase project settings and local environment values separately. The repository does not provide credentials or a turnkey production environment. Inter and Pretendard font files are bundled with their OFL license notices under `assets/fonts/`.
 
 ## Architecture at a glance
 

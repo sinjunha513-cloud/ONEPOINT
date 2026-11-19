@@ -1,0 +1,82 @@
+[
+  {
+    "asset": "lock.png",
+    "source": "at-icons_lock.svg",
+    "sha256": "e7b10a2fba233fb4baae656741785089cf6aab755c94388eda2c0b26e4ddbcee",
+    "width": 33,
+    "height": 33,
+    "scale": 3
+  },
+  {
+    "asset": "trophy.png",
+    "source": "at-icons_trophy.svg",
+    "sha256": "417ffbbb92abd41c4f1e56b788ab9ded5f2fdd305874f311aa236ae5a3ecb2b4",
+    "width": 30,
+    "height": 30,
+    "scale": 3
+  },
+  {
+    "asset": "bell.png",
+    "source": "Bell.svg",
+    "sha256": "569fa93b8d6e99d05bad3a64133cc4220ab2002af199e77e4f1e97cd8cbeed61",
+    "width": 27,
+    "height": 27,
+    "scale": 3
+  },
+  {
+    "asset": "chat-empty.png",
+    "source": "bi_chat-dots-fill-1.svg",
+    "sha256": "08d019a2b08bc4f54414c5276231be725a3e2c4d0af41a3bb5781ebd4c3b31a3",
+    "width": 53,
+    "height": 53,
+    "scale": 3
+  },
+  {
+    "asset": "send.png",
+    "source": "iconoir_send-diagonal-solid.svg",
+    "sha256": "55ae99b1da1a9af8b712e938e3c09380f5ae5c8a7e0938c5aa7b2c968a28a144",
+    "width": 24,
+    "height": 24,
+    "scale": 3
+  },
+  {
+    "asset": "badge.png",
+    "source": "image 3.svg",
+    "sha256": "2bd15a925a5bf492d6d66487a074a468890ee26caa8f24711c64b346ca80e99d",
+    "width": 29,
+    "height": 36,
+    "scale": 3
+  },
+  {
+    "asset": "badge-medal.png",
+    "source": "image 4.svg",
+    "sha256": "3d9ce9d3069fd57fc4b402b824775cf1652b24fdba61700c4637473039036bc4",
+    "width": 30,
+    "height": 37,
+    "scale": 3
+  },
+  {
+    "asset": "feed-empty.png",
+    "source": "image 5.svg",
+    "sha256": "1a8a979fc6b555d22559b6183f08c7c2aed18a986d81c5cadd0db5affd5ce20c",
+    "width": 65,
+    "height": 65,
+    "scale": 3
+  },
+  {
+    "asset": "profile-avatar.png",
+    "source": "Male User.svg",
+    "sha256": "6383f18f6edf653f8bd0e9166a3741e79583740d5a08a52c99f2f6f87da0ef4b",
+    "width": 59,
+    "height": 55,
+    "scale": 3
+  },
+  {
+    "asset": "lesson-football.png",
+    "source": "coolicons_soccer-ball-round.svg",
+    "sha256": "058cb9011d949ee352c876a66bdbe89c0cb0ac2a3f54ee69342a33606a885382",
+    "width": 27,
+    "height": 27,
+    "scale": 3
+  }
+]

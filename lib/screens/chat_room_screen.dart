@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
+import '../widgets/onepoint_icon.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String roomId;
@@ -47,11 +48,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFFF4F7FB),
+        backgroundColor: const Color(0xFF070101),
         appBar: AppBar(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF101828),
-          surfaceTintColor: Colors.white,
+          backgroundColor: const Color(0xFF070101),
+          foregroundColor: const Color(0xFFFFFFFF),
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
           automaticallyImplyLeading: false,
           leadingWidth: 104,
@@ -61,12 +62,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               key: const ValueKey('chat-back-button'),
               onPressed: () => Navigator.of(context).maybePop(),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF1D4ED8),
-                backgroundColor: const Color(0xFFEFF6FF),
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.transparent,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFBFDBFE)),
+                  side: BorderSide.none,
                 ),
               ),
               icon: const Icon(Icons.arrow_back_rounded, size: 20),
@@ -79,13 +80,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           title: Text(
             '${widget.targetName} 피드백',
             style: const TextStyle(
-              color: Color(0xFF101828),
+              color: Color(0xFFFFFFFF),
               fontWeight: FontWeight.w700,
             ),
           ),
           bottom: const PreferredSize(
             preferredSize: Size.fromHeight(1),
-            child: Divider(height: 1, color: Color(0xFFE4E7EC)),
+            child: Divider(height: 1, color: Color(0xFF252525)),
           ),
         ),
         body: Column(children: [
@@ -97,14 +98,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   return const Center(
                     child: Text(
                       '메시지를 불러오지 못했습니다.',
-                      style: TextStyle(color: Color(0xFF344054)),
+                      style: TextStyle(color: Color(0xFFB9B9B9)),
                     ),
                   );
                 }
                 if (!snapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(
-                      color: Color(0xFF2563EB),
+                      color: Color(0xFF24A9FF),
                     ),
                   );
                 }
@@ -114,7 +115,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     child: Text(
                       '첫 메시지를 보내 보세요.',
                       style: TextStyle(
-                        color: Color(0xFF344054),
+                        color: Color(0xFFB9B9B9),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -134,7 +135,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: mine ? const Color(0xFF2563EB) : Colors.white,
+                          color: mine
+                              ? const Color(0xFF24A9FF)
+                              : const Color(0xFF444444),
                           borderRadius: BorderRadius.circular(16),
                           border: mine
                               ? null
@@ -150,8 +153,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         child: Text(
                           data['text'] as String? ?? '',
                           style: TextStyle(
-                            color:
-                                mine ? Colors.white : const Color(0xFF101828),
+                            color: mine ? Colors.black : Colors.white,
                             fontSize: 15,
                             height: 1.35,
                           ),
@@ -165,9 +167,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
           Container(
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: Color(0xFF070101),
               border: Border(
-                top: BorderSide(color: Color(0xFFE4E7EC)),
+                top: BorderSide(color: Color(0xFF252525)),
               ),
             ),
             child: SafeArea(
@@ -178,13 +180,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   child: TextField(
                     key: const ValueKey('chat-message-input'),
                     controller: _controller,
-                    style: const TextStyle(color: Color(0xFF101828)),
+                    style: const TextStyle(color: Color(0xFFFFFFFF)),
                     cursorColor: const Color(0xFF0284C7),
                     decoration: InputDecoration(
                       hintText: '메시지 입력',
-                      hintStyle: const TextStyle(color: Color(0xFF667085)),
+                      hintStyle: const TextStyle(color: Color(0xFF949494)),
                       filled: true,
-                      fillColor: const Color(0xFFF2F4F7),
+                      fillColor: const Color(0xFF252525),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 13),
                       border: OutlineInputBorder(
@@ -198,7 +200,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(18),
                         borderSide: const BorderSide(
-                            color: Color(0xFF38BDF8), width: 2),
+                            color: Color(0xFF24A9FF), width: 2),
                       ),
                     ),
                     onSubmitted: (_) => _send(),
@@ -208,7 +210,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 IconButton(
                   key: const ValueKey('chat-send-button'),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF38BDF8),
+                    backgroundColor: const Color(0xFFC7F000),
                     disabledBackgroundColor: const Color(0xFF475467),
                     foregroundColor: const Color(0xFF07111F),
                     minimumSize: const Size.square(46),
@@ -219,7 +221,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Color(0xFF07111F)),
                         )
-                      : const Icon(Icons.send_rounded),
+                      : const OnepointIcon('send', width: 24, height: 24),
                   onPressed: _sending ? null : _send,
                 ),
               ]),

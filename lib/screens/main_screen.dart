@@ -4,328 +4,498 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/lesson_service.dart';
 import 'profile_screen.dart';
 import 'shortform_feed_screen.dart';
-import 'chat_list_screen.dart';
-import 'instructor_registration_screen.dart';
 import 'lesson_requests_screen.dart';
 import '../config/sports.dart';
 import '../config/signature_badge_palette.dart';
 import '../models/lesson_slot.dart';
 import 'lesson_slot_picker_screen.dart';
-import 'admin_dashboard_screen.dart';
+import '../widgets/onepoint_app_bar.dart';
+import '../widgets/onepoint_icon.dart';
+import '../config/onepoint_design.dart';
+import '../services/matching_service.dart';
+import '../models/lesson_badge.dart';
+import 'lesson_badges_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  const MainScreen({super.key, this.firestore, this.auth});
+
+  final FirebaseFirestore? firestore;
+  final FirebaseAuth? auth;
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  String selectedSport = '축구';
-  final LessonService _lessonService = LessonService();
+  String selectedSport = '전체';
+  late final FirebaseFirestore _db =
+      widget.firestore ?? FirebaseFirestore.instance;
+  late final FirebaseAuth _auth = widget.auth ?? FirebaseAuth.instance;
+  late final LessonService _lessonService =
+      LessonService(firestore: _db, auth: _auth);
+  late final _lessons = MatchingService(firestore: _db, auth: _auth).lessons();
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _coaches =
+      _lessonService.getInstructors(selectedSport);
 
-  Future<void> _openCoachRegistrationOrReview() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인 후 코치 등록을 이용해 주세요.')),
-        );
-      }
-      return;
-    }
-
-    try {
-      final profile =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (!mounted) return;
-      final role = profile.data()?['role'] as String?;
-      if (role == 'admin') {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-        );
-        return;
-      }
-      if (role != 'student' && role != 'coach') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('회원 프로필을 완료한 뒤 코치 등록을 이용해 주세요.')),
-        );
-        return;
-      }
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const InstructorRegistrationScreen(),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('계정 권한을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.')),
-      );
-    }
+  void _selectSport(String sport) {
+    if (sport == selectedSport) return;
+    setState(() {
+      selectedSport = sport;
+      _coaches = _lessonService.getInstructors(sport);
+    });
   }
+
+  void _open(Widget screen) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('원포인트레슨'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.assignment_outlined),
-            tooltip: '내 레슨',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LessonRequestsScreen()),
-            ),
-          ),
-          // 1. 코치 프로필 등록 버튼
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            tooltip: '코치 등록 · 승인 관리',
-            onPressed: _openCoachRegistrationOrReview,
-          ),
-          // 2. 1:1 피드백 채팅목록 버튼
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
-            tooltip: '1:1 피드백',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ChatListScreen(),
-                ),
-              );
-            },
-          ),
-          // 3. 숏폼 피드 버튼
-          IconButton(
-            icon: const Icon(Icons.video_library),
-            tooltip: '숏폼 피드',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ShortformFeedScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
-          Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  for (final sport in supportedSports)
-                    ChoiceChip(
-                      avatar: Icon(sportIcon(sport)),
-                      label: Text(sport),
-                      selected: selectedSport == sport,
-                      onSelected: (selected) {
-                        if (selected) setState(() => selectedSport = sport);
-                      },
-                    )
-                ],
-              )),
-          const Divider(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                Text(
-                  '$selectedSport 추천 코치 선택',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Firestore 실시간 코치 데이터 로딩
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _lessonService.getInstructors(selectedSport),
-              builder: (context, snapshot) {
-                // 1. 에러 발생 시 UI & 콘솔 로그 출력
-                if (snapshot.hasError) {
-                  debugPrint('🔥 Firestore 에러: ${snapshot.error}');
-
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+  Widget build(BuildContext context) => Scaffold(
+        appBar: OnepointAppBar(
+          title: '홈',
+          showSectionTitle: false,
+          firestore: _db,
+          auth: _auth,
+        ),
+        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _coaches,
+          builder: (context, coaches) =>
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _lessons,
+            builder: (context, lessons) {
+              final docs = coaches.data?.docs ?? [];
+              final requests = lessons.data?.docs ?? [];
+              final pending =
+                  requests.where((d) => d.data()['status'] == 'pending').length;
+              final accepted = requests
+                  .where((d) => d.data()['status'] == 'accepted')
+                  .length;
+              final completed = requests
+                  .where((d) => d.data()['status'] == 'completed')
+                  .length;
+              final badges = requests
+                  .where((d) =>
+                      d.data()['studentUid'] == _auth.currentUser?.uid &&
+                      LessonBadge.fromLesson(d.id, d.data()) != null)
+                  .length;
+              final progress = accepted + completed == 0
+                  ? 0.0
+                  : completed / (accepted + completed);
+              final loaded = lessons.hasData && !lessons.hasError;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Icon(Icons.error_outline_rounded,
-                              color: Colors.redAccent, size: 48),
-                          const SizedBox(height: 12),
-                          const Text(
-                            '데이터를 불러오는 중 오류가 발생했습니다.',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.redAccent,
-                            ),
+                          _tile(
+                            onTap: () => _open(const LessonRequestsScreen()),
+                            child: Row(children: [
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    const Text('나의 레슨 현황',
+                                        style: OnepointDesign.heading),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                        lessons.hasError
+                                            ? '레슨 현황을 불러오지 못했습니다.'
+                                            : '완료한 레슨과 진행 상황을 확인해보세요.',
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11)),
+                                  ])),
+                              SizedBox.square(
+                                  dimension: 52,
+                                  child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        SizedBox.expand(
+                                            child: CircularProgressIndicator(
+                                                value: progress,
+                                                backgroundColor: Colors.white10,
+                                                color: OnepointDesign.lime,
+                                                strokeWidth: 6)),
+                                        Text(
+                                            loaded
+                                                ? '${(progress * 100).round()}%'
+                                                : '—',
+                                            style:
+                                                const TextStyle(fontSize: 13)),
+                                      ])),
+                            ]),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '네트워크 상태를 확인하시거나 잠시 후 다시 시도해 주세요.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                // 2. 로딩 중 UI
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final docs = snapshot.data?.docs ?? [];
-
-                // 3. 등록된 코치가 없는 경우 (Empty State UI)
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Container(
-                      margin: const EdgeInsets.all(24),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 32),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              sportIcon(selectedSport),
-                              size: 40,
-                              color: Colors.blue.shade400,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '현재 등록된 $selectedSport 코치가 없습니다.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
+                          const SizedBox(height: 14),
+                          IntrinsicHeight(
+                              child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                      _recommendation(coaches),
+                                      const SizedBox(height: 14),
+                                      Expanded(
+                                          child: _tile(
+                                        onTap: () =>
+                                            _open(const LessonBadgesScreen()),
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Row(children: [
+                                                Expanded(
+                                                    child: Text('나의 뱃지',
+                                                        style: OnepointDesign
+                                                            .heading)),
+                                                OnepointIcon('badge',
+                                                    width: 20, height: 26)
+                                              ]),
+                                              const SizedBox(height: 20),
+                                              Text(loaded ? '$badges개 획득' : '—',
+                                                  style: const TextStyle(
+                                                      fontSize: 26,
+                                                      fontWeight:
+                                                          FontWeight.w600)),
+                                            ]),
+                                      )),
+                                    ])),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                      _tile(
+                                          onTap: () => _open(
+                                              const LessonRequestsScreen()),
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text('레슨 신청 현황',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontSize: 17)),
+                                                const SizedBox(height: 16),
+                                                _status('수락 대기',
+                                                    loaded ? '$pending' : '—'),
+                                                const SizedBox(height: 8),
+                                                _status('레슨 확정',
+                                                    loaded ? '$accepted' : '—'),
+                                              ])),
+                                      const SizedBox(height: 14),
+                                      Expanded(
+                                          child: _tile(
+                                        padding: EdgeInsets.zero,
+                                        onTap: () =>
+                                            _open(const ShortformFeedScreen()),
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              const Expanded(
+                                                  child: Center(
+                                                      child: OnepointIcon(
+                                                          'video-upload',
+                                                          width: 48,
+                                                          height: 28))),
+                                              Container(
+                                                  padding:
+                                                      const EdgeInsets.all(14),
+                                                  decoration: BoxDecoration(
+                                                      color:
+                                                          OnepointDesign.lime,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              16)),
+                                                  child: const Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text('레슨 영상 피드',
+                                                            style: TextStyle(
+                                                                color: Colors
+                                                                    .black,
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600)),
+                                                        SizedBox(height: 4),
+                                                        Text('코칭 영상을 확인해보세요.',
+                                                            style: TextStyle(
+                                                                color: Colors
+                                                                    .black54,
+                                                                fontSize: 10)),
+                                                      ])),
+                                            ]),
+                                      )),
+                                    ])),
+                              ])),
+                          const SizedBox(height: 24),
+                          Row(children: [
+                            const Expanded(
+                                child: Text('종목별 코치 찾기',
+                                    style: OnepointDesign.heading)),
+                            TextButton(
+                                onPressed: _chooseSport,
+                                child: const Text('전체 종목',
+                                    style:
+                                        TextStyle(color: OnepointDesign.muted)))
+                          ]),
                           const SizedBox(height: 8),
-                          Text(
-                            '상단의 코치 등록(+) 버튼을 눌러 첫 코치 프로필을 추가해 보세요!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                // 4. 코치 목록 리스트뷰
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    final docId = docs[index].id;
-                    final badgeColor = signatureBadgeColor(
-                        (data['signatureBadgeColorIndex'] as num?)?.toInt(),
-                        legacyIdentity:
-                            data['signatureMove'] as String? ?? docId);
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blue.shade100,
-                          child: Icon(
-                            sportIcon(selectedSport),
-                            color: Colors.blue,
-                          ),
-                        ),
-                        title: Text(
-                            '${data['name'] ?? '코치'} (★ ${data['rating'] ?? '5.0'})'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (data['lessonLevel'] is String)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Text(
-                                  data['lessonLevel'] as String,
-                                  style: const TextStyle(
-                                    color: Color(0xFF16A34A),
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          Row(children: [
+                            for (final sport in ['축구', '농구', '테니스', '배드민턴'])
+                              Expanded(
+                                  child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 3),
+                                child: _tile(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                  color: selectedSport == sport
+                                      ? OnepointDesign.lime
+                                      : OnepointDesign.surface,
+                                  onTap: () => _selectSport(sport),
+                                  child: Column(children: [
+                                    OnepointIcon(
+                                      switch (sport) {
+                                        '축구' => 'sport-football',
+                                        '농구' => 'sport-basketball',
+                                        '테니스' => 'sport-tennis',
+                                        _ => 'badminton'
+                                      },
+                                      width: 22,
+                                      height: 22,
+                                      color: selectedSport == sport
+                                          ? Colors.black
+                                          : OnepointDesign.lime,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(sport,
+                                        style: TextStyle(
+                                            color: selectedSport == sport
+                                                ? Colors.black
+                                                : Colors.white,
+                                            fontSize: 11)),
+                                  ]),
                                 ),
-                              ),
-                            Text((data['career'] as String? ?? '').isNotEmpty
-                                ? data['career'] as String
-                                : data['careerPdfId'] != null
-                                    ? '경력 PDF 제출'
-                                    : '경력 정보 없음'),
-                            if ((data['signatureMove'] as String? ?? '')
-                                .trim()
-                                .isNotEmpty)
+                              ))
+                          ]),
+                          const SizedBox(height: 16),
+                          if (!['축구', '농구', '테니스', '배드민턴']
+                              .contains(selectedSport))
+                            Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Text('$selectedSport 코치',
+                                    style: OnepointDesign.heading)),
+                          if (coaches.hasError)
+                            Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(children: [
+                                Text(
+                                    coaches.error is FirebaseException &&
+                                            (coaches.error as FirebaseException)
+                                                    .code ==
+                                                'permission-denied'
+                                        ? '코치 목록 조회 권한을 확인하지 못했습니다. 다시 로그인해 주세요.'
+                                        : '코치 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                                    textAlign: TextAlign.center),
+                                const SizedBox(height: 8),
+                                TextButton(
+                                    onPressed: () => setState(() => _coaches =
+                                        _lessonService
+                                            .getInstructors(selectedSport)),
+                                    child: const Text('다시 시도',
+                                        style: TextStyle(
+                                            color: OnepointDesign.lime))),
+                              ]),
+                            )
+                          else if (!coaches.hasData)
+                            const Center(
+                                child: CircularProgressIndicator(
+                                    color: OnepointDesign.lime))
+                          else if (docs.isEmpty)
+                            Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Text('현재 등록된 $selectedSport 코치가 없습니다.',
+                                    textAlign: TextAlign.center))
+                          else
+                            for (final doc in docs)
                               Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  '시그니처 뱃지 · ${data['signatureMove']}',
-                                  style: TextStyle(
-                                    color: badgeColor,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          _showInstructorDetail(context, docId, data);
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _tile(
+                                    onTap: () => _showInstructorDetail(
+                                        context, doc.id, doc.data()),
+                                    child: Row(children: [
+                                      Container(
+                                          width: 52,
+                                          height: 52,
+                                          decoration: BoxDecoration(
+                                              color: Colors.white24,
+                                              borderRadius:
+                                                  BorderRadius.circular(9)),
+                                          child: Icon(
+                                              sportIcon(doc.data()['sport']
+                                                      as String? ??
+                                                  selectedSport),
+                                              color: Colors.white)),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                            Text(
+                                                doc.data()['signatureMove']
+                                                        as String? ??
+                                                    "${doc.data()['sport'] ?? '스포츠'} 레슨",
+                                                style: const TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                                '${doc.data()['name'] ?? '코치'} · ${doc.data()['lessonLevel'] ?? doc.data()['sport'] ?? '스포츠'}',
+                                                style: const TextStyle(
+                                                    color: Colors.white60,
+                                                    fontSize: 12)),
+                                          ])),
+                                      const Icon(Icons.chevron_right,
+                                          color: OnepointDesign.lime),
+                                    ]),
+                                  )),
+                        ]),
+                  ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      );
+
+  Widget _recommendation(
+      AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot) {
+    final docs = snapshot.data?.docs ?? [];
+    final coach = docs.isEmpty ? null : docs.first;
+    final name = coach?.data()['name'] as String? ??
+        (snapshot.hasError
+            ? '연결 확인'
+            : snapshot.hasData
+                ? '코치 모집 중'
+                : '불러오는 중');
+    return _tile(
+      color: OnepointDesign.lime,
+      onTap: coach == null
+          ? null
+          : () => _showInstructorDetail(context, coach.id, coach.data()),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('추천 코치',
+            style: TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 16),
+        SizedBox(
+            height: 144,
+            child: Center(
+                child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 130, maxHeight: 130),
+              child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Stack(fit: StackFit.expand, children: [
+                    const ExcludeSemantics(
+                        child: CircularProgressIndicator(
+                            value: .75,
+                            strokeWidth: 9,
+                            color: Colors.white,
+                            backgroundColor: Colors.transparent)),
+                    Center(
+                        child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(name,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                      coach?.data()['sport'] as String? ??
+                                          (selectedSport == '전체'
+                                              ? '스포츠'
+                                              : selectedSport),
+                                      style: const TextStyle(
+                                          color: Colors.black54, fontSize: 12)),
+                                ]))),
+                  ])),
+            ))),
+      ]),
     );
   }
+
+  Widget _tile(
+          {required Widget child,
+          Color color = OnepointDesign.surface,
+          VoidCallback? onTap,
+          EdgeInsetsGeometry padding = const EdgeInsets.all(16)}) =>
+      Material(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+            onTap: onTap, child: Padding(padding: padding, child: child)),
+      );
+
+  Widget _status(String label, String count) => Row(children: [
+        Flexible(
+            child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                    color: OnepointDesign.lime,
+                    borderRadius: BorderRadius.circular(16)),
+                child: Text(label,
+                    style:
+                        const TextStyle(color: Colors.black, fontSize: 11)))),
+        const SizedBox(width: 10),
+        Text(count, style: const TextStyle(fontWeight: FontWeight.w600)),
+      ]);
+
+  void _chooseSport() => showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: OnepointDesign.surface,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+              child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final sport in ['전체', ...supportedSports])
+                ChoiceChip(
+                  label: Text(sport),
+                  selected: selectedSport == sport,
+                  selectedColor: OnepointDesign.lime,
+                  onSelected: (_) {
+                    _selectSport(sport);
+                    Navigator.pop(context);
+                  },
+                )
+            ]),
+          )));
 
   // 코치 상세정보 모달창
   void _showInstructorDetail(
@@ -424,8 +594,6 @@ class _MainScreenState extends State<MainScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue),
                       onPressed: requesting
                           ? null
                           : () async {
@@ -481,11 +649,10 @@ class _MainScreenState extends State<MainScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: Colors.black,
                               ),
                             )
-                          : const Text('레슨 신청하기',
-                              style: TextStyle(color: Colors.white)),
+                          : const Text('레슨 신청하기'),
                     ),
                   )
                 ],

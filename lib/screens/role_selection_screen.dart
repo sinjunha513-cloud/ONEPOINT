@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../config/onepoint_design.dart';
 import '../services/auth_service.dart';
+import '../widgets/logout_confirmation.dart';
 import 'session_gate_screen.dart';
 import 'signup_screen.dart';
 
@@ -27,6 +29,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     setState(() => _signingOut = true);
     final service = widget.service ?? AuthService();
     try {
+      if (!await confirmLogout(context) || !mounted) return;
       await service.signOut();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
@@ -50,13 +53,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0F12),
+      backgroundColor: OnepointDesign.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text('가입 유형 선택',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -68,7 +71,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   height: 1.4),
             ),
             const SizedBox(height: 40),
@@ -126,14 +129,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1C29),
+          color: OnepointDesign.surface,
           borderRadius: BorderRadius.circular(16),
-          border:
-              Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
+          border: Border.all(color: OnepointDesign.blue.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 40, color: const Color(0xFF38BDF8)),
+            Icon(icon, size: 40, color: OnepointDesign.blue),
             const SizedBox(width: 20),
             Expanded(
               child: Column(
@@ -143,7 +145,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
-                          fontWeight: FontWeight.bold)),
+                          fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text(subtitle,
                       style:

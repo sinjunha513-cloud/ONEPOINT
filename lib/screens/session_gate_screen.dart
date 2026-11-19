@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../widgets/session_entrance.dart';
+import '../widgets/logout_confirmation.dart';
 import 'login_screen.dart';
 import 'main_navigation_screen.dart';
 import 'role_selection_screen.dart';
@@ -30,6 +32,7 @@ class _SessionGateScreenState extends State<SessionGateScreen> {
   String? _lastUid;
   bool _receivedUser = false;
   bool _authError = false;
+  bool _signingOut = false;
 
   @override
   void initState() {
@@ -104,7 +107,10 @@ class _SessionGateScreenState extends State<SessionGateScreen> {
   }
 
   Future<void> _signOut() async {
+    if (_signingOut) return;
+    setState(() => _signingOut = true);
     try {
+      if (!await confirmLogout(context) || !mounted) return;
       await _service.signOut();
       if (mounted) _retry();
     } catch (_) {
@@ -112,6 +118,8 @@ class _SessionGateScreenState extends State<SessionGateScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('로그아웃하지 못했습니다. 다시 시도해 주세요.')),
       );
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
     }
   }
 
@@ -135,7 +143,7 @@ class _SessionGateScreenState extends State<SessionGateScreen> {
                       FilledButton(
                           onPressed: _retry, child: const Text('다시 시도')),
                       TextButton(
-                          onPressed: _signOut,
+                          onPressed: _signingOut ? null : _signOut,
                           child: const Text('다른 계정으로 로그인')),
                     ],
                   ),
@@ -147,12 +155,14 @@ class _SessionGateScreenState extends State<SessionGateScreen> {
             return const Scaffold(
                 body: Center(child: CircularProgressIndicator()));
           }
-          return switch (snapshot.data) {
+          final screen = switch (snapshot.data) {
             _Destination.blocked => Scaffold(
                   body: Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Text('이용이 정지되었거나 삭제된 계정입니다.'),
-                TextButton(onPressed: _signOut, child: const Text('로그아웃')),
+                TextButton(
+                    onPressed: _signingOut ? null : _signOut,
+                    child: const Text('로그아웃')),
               ]))),
             _Destination.login =>
               LoginScreen(service: _service, homeBuilder: widget.homeBuilder),
@@ -171,6 +181,14 @@ class _SessionGateScreenState extends State<SessionGateScreen> {
             null =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
           };
+          if (snapshot.data == _Destination.home ||
+              snapshot.data == _Destination.profile ||
+              snapshot.data == _Destination.coachApplication) {
+            return SessionEntrance(
+                key: ValueKey('session-$_lastUid-${snapshot.data}'),
+                child: screen);
+          }
+          return screen;
         },
       );
 }

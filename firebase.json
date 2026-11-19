@@ -2,6 +2,22 @@
   "firestore": {"rules": "firestore.rules"},
   "storage": {"rules": "storage.rules"},
   "functions": {"source": "functions"},
+  "hosting": [
+    {
+      "site": "onlyonepoint-lesson",
+      "public": "build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{"source": "**", "destination": "/index.html"}],
+      "headers": [{"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate"}]}]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "public": "build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{"source": "**", "destination": "/index.html"}],
+      "headers": [{"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate"}]}]
+    }
+  ],
   "emulators": {
     "auth": {"host": "127.0.0.1", "port": 9099},
     "firestore": {"host": "127.0.0.1", "port": 8080},

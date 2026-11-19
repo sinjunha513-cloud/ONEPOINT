@@ -1,0 +1,103 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-17T04:21:40.423Z",
+  "rules": {
+    "firestore": {
+      "release": "projects/onlyonepoint-lesson/releases/cloud.firestore",
+      "ruleset": "projects/onlyonepoint-lesson/rulesets/0684cdae-0343-401b-be11-1dc4b7bf12ab",
+      "updateTime": "2026-11-17T04:16:02.322371Z",
+      "matchesLocalSource": true
+    },
+    "storage": {
+      "release": "projects/onlyonepoint-lesson/releases/firebase.storage/onlyonepoint-lesson.firebasestorage.app",
+      "ruleset": "projects/onlyonepoint-lesson/rulesets/b6884efc-2b58-4ea4-a823-ce5468c3bc67",
+      "updateTime": "2026-11-17T04:16:01.645600Z",
+      "matchesLocalSource": true
+    }
+  },
+  "functions": [
+    {
+      "name": "releaseCancelledSlot",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "completeLesson",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "validateCareerPdf",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLessonWithSlot",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "setFeedLiked",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectInstructorPublicProfile",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "adminManageAccount",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectPublicAvailability",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "saveAvailabilitySlots",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectUserPublicProfile",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "deleteAvailabilitySlot",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "rescheduleLesson",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLesson",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "saveAvailabilitySlot",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "deleteVideo",
+      "state": "ACTIVE",
+      "region": "asia-northeast3"
+    }
+  ],
+  "backfill": {
+    "project": "onlyonepoint-lesson",
+    "userProjections": 26,
+    "coachProjections": 9,
+    "slotProjections": 0,
+    "sourceDocumentsChanged": false,
+    "completedAt": "2026-11-17T04:19:43.878Z"
+  }
+}

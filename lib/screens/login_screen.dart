@@ -1,9 +1,11 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import '../config/onepoint_design.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'role_selection_screen.dart';
 import 'session_gate_screen.dart';
+import '../widgets/onepoint_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.service, this.homeBuilder});
@@ -18,6 +20,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocus = FocusNode();
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   late final AuthService _service;
@@ -29,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _openSession() {
+    FocusScope.of(context).unfocus();
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -158,13 +162,14 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0F12),
+      backgroundColor: OnepointDesign.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -173,25 +178,8 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 확인된 assets/icon/ 경로 반영
-                Center(
-                  child: Image.asset(
-                    'assets/icon/app_icon.png',
-                    width: 90,
-                    height: 90,
-                  ),
-                ),
+                const Center(child: OnepointLogo()),
                 const SizedBox(height: 16),
-                const Text(
-                  '원포인트',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 const Text(
                   '나만의 스포츠 멘토를 만나보세요',
                   textAlign: TextAlign.center,
@@ -208,12 +196,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   enabled: !_isLoading,
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _passwordFocus.requestFocus(),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: '이메일',
                     hintStyle: const TextStyle(color: Colors.white30),
                     filled: true,
-                    fillColor: const Color(0xFF1A1C29),
+                    fillColor: OnepointDesign.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -229,13 +219,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   key: const ValueKey('login-password'),
                   enabled: !_isLoading,
                   controller: _passwordController,
+                  focusNode: _passwordFocus,
+                  textInputAction: TextInputAction.go,
+                  onSubmitted: (_) => _handleLogin(),
                   obscureText: true,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: '비밀번호',
                     hintStyle: const TextStyle(color: Colors.white30),
                     filled: true,
-                    fillColor: const Color(0xFF1A1C29),
+                    fillColor: OnepointDesign.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -252,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF38BDF8),
+                      backgroundColor: OnepointDesign.lime,
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -264,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             '로그인',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                   ),
@@ -288,9 +281,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     key: const ValueKey('google-login'),
                     onPressed: _isLoading ? null : _handleGoogleLogin,
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF202124),
-                      disabledBackgroundColor: Colors.white70,
+                      backgroundColor: OnepointDesign.surface,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: OnepointDesign.surface,
+                      disabledForegroundColor: Colors.white38,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
@@ -329,8 +323,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text(
                         '회원가입',
                         style: TextStyle(
-                          color: Color(0xFF38BDF8),
-                          fontWeight: FontWeight.bold,
+                          color: OnepointDesign.blue,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -373,6 +367,7 @@ class _GoogleLinkPasswordDialogState extends State<_GoogleLinkPasswordDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: OnepointDesign.surface,
         title: const Text('기존 계정에 Google 연결'),
         content: Form(
           key: _formKey,

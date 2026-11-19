@@ -49,11 +49,13 @@ class InstructorService {
 
     // Keep Firestore's live listener as the source of truth. The memory cache
     // only supplies an immediate first frame when this screen is opened again.
-    await for (final snapshot in _db
+    Query<Map<String, dynamic>> query = _db
         .collection('public_instructors')
-        .where('sport', isEqualTo: sport)
-        .where('status', isEqualTo: 'approved')
-        .snapshots()) {
+        .where('status', isEqualTo: 'approved');
+    if (sport != '전체') {
+      query = query.where('sport', isEqualTo: sport);
+    }
+    await for (final snapshot in query.snapshots()) {
       _approvedInstructorCache.put(key, snapshot);
       yield snapshot;
     }

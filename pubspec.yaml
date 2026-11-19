@@ -44,3 +44,37 @@ flutter:
   assets:
     - assets/
     - assets/icon/
+    - assets/brand/
+    - assets/design/
+    - assets/fonts/Inter-OFL.txt
+    - assets/fonts/Pretendard-OFL.txt
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 100
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 200
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 300
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 800
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 900
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Pretendard-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.ttf
+          weight: 700

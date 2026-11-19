@@ -129,6 +129,24 @@ void main() {
     );
   });
 
+  testWidgets('sent and received filters show only the matching direction',
+      (tester) async {
+    await addLesson(id: 'sent', instructorUid: 'coach', studentUid: 'student');
+    await addLesson(
+        id: 'received', instructorUid: 'student', studentUid: 'coach');
+    await showLessons(tester, 'student');
+    expect(find.byKey(const ValueKey('lesson-card-sent')), findsOneWidget);
+    expect(find.byKey(const ValueKey('lesson-card-received')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('lessons-보낸 신청')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('lesson-card-sent')), findsOneWidget);
+    expect(find.byKey(const ValueKey('lesson-card-received')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('lessons-받은 신청')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('lesson-card-sent')), findsNothing);
+    expect(find.byKey(const ValueKey('lesson-card-received')), findsOneWidget);
+  });
+
   testWidgets('coach accepts and evaluates a lesson, updating progress once',
       (tester) async {
     await addLesson();

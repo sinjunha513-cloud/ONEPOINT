@@ -48,3 +48,6 @@ ios/Runner/GoogleService-Info.plist.local
 *.tsbuildinfo
 *.log
 .firebase/
+
+# Local deployment/security snapshots
+/.security-review-backups/

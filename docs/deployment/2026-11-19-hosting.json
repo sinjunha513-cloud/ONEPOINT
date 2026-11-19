@@ -1,0 +1,94 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-19T03:08:34.858Z",
+  "primaryUrl": "https://onlyonepoint-lesson.web.app",
+  "sites": [
+    {
+      "site": "onlyonepoint-lesson",
+      "url": "https://onlyonepoint-lesson.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795057706263000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/80eb4a753034a305",
+      "releaseTime": "2026-11-19T03:08:26.263Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "b8742d0fe9072b147d148d27b163e67f22853251cf4164b97c3de9e932c9991d",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "0c3b744cfebabf0fcf9d203d07d233d39e23c060b3964a005ccbc8e1b6c8e841",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "d2bc7c3372f23debdc20e6b802b85acac3740b1f2305558d4bd5e6811acc27eb",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "url": "https://onlyonepoint-lesson-v2.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795057706469000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/0f377b4ffa9d2918",
+      "releaseTime": "2026-11-19T03:08:26.469Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "b8742d0fe9072b147d148d27b163e67f22853251cf4164b97c3de9e932c9991d",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "0c3b744cfebabf0fcf9d203d07d233d39e23c060b3964a005ccbc8e1b6c8e841",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "d2bc7c3372f23debdc20e6b802b85acac3740b1f2305558d4bd5e6811acc27eb",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "authorizedDomains": [
+    "localhost",
+    "onlyonepoint-lesson.firebaseapp.com",
+    "onlyonepoint-lesson.web.app",
+    "onlyonepoint-lesson-v2.web.app"
+  ],
+  "verification": "Published index, bootstrap and JavaScript hashes match the local release build on both existing sites.",
+  "browserChecks": [
+    {
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    },
+    {
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    }
+  ]
+}

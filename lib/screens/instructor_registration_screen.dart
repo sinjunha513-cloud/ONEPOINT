@@ -519,24 +519,17 @@ class _InstructorRegistrationScreenState
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
                             onPressed: _isLoading ? null : _submitForm,
                             child: _isLoading
                                 ? const CircularProgressIndicator(
-                                    color: Colors.white)
+                                    color: Colors.black)
                                 : Text(
                                     _status == null
                                         ? '코치 승인 요청하기'
                                         : '수정 후 승인 다시 요청하기',
                                     style: const TextStyle(
-                                      color: Colors.white,
                                       fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                           ),

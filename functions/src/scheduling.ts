@@ -12,24 +12,35 @@ async function coach(tx: FirebaseFirestore.Transaction, uid: string) {
 }
 async function save(r: CallableRequest, bulk: boolean) {
   const uid = uidOf(r); const input = r.data;
+  if (input?.coachUid !== undefined && input.coachUid !== uid) throw new HttpsError("permission-denied", "로그인 계정이 변경되었습니다. 다시 시도해 주세요.");
   const ranges = bulk ? input?.slots : [input];
   if (!Array.isArray(ranges) || ranges.length < 1 || ranges.length > 100) throw new HttpsError("invalid-argument", "시간을 확인해 주세요.");
   const slots = db().collection("instructors").doc(uid).collection("availability");
   const parsed = ranges.map((range: Record<string, unknown>) => {
     if (!range || !Number.isSafeInteger(range.startAtMillis) || !Number.isSafeInteger(range.endAtMillis) || (range.startAtMillis as number) <= Date.now() || (range.endAtMillis as number) <= (range.startAtMillis as number) || (range.endAtMillis as number) - (range.startAtMillis as number) > 24 * 3600000) throw new HttpsError("invalid-argument", "미래의 시작·종료 시간을 확인해 주세요.");
-    return {ref: !bulk && input.slotId ? slots.doc(documentId(input.slotId, "slotId")) : slots.doc(), start: range.startAtMillis as number, end: range.endAtMillis as number};
+    return {ref: bulk ? slots.doc(`bulk_${range.startAtMillis}_${range.endAtMillis}`) : input.slotId ? slots.doc(documentId(input.slotId, "slotId")) : slots.doc(), start: range.startAtMillis as number, end: range.endAtMillis as number};
   });
+  if (parsed.some(slot => parsed.some(other => other !== slot && other.start < slot.end && other.end > slot.start))) throw new HttpsError("already-exists", "겹치는 시간이 있습니다.");
+  let ids: string[] = [];
   await db().runTransaction(async tx => {
     await coach(tx, uid);
     const current = await tx.get(slots);
+    ids = [];
+    const writes: typeof parsed = [];
     for (const slot of parsed) {
+      // Retrying a chunk must not duplicate it or reopen a slot booked meanwhile.
+      const exact = bulk ? current.docs.find(d => d.data().startAt.toMillis() === slot.start && d.data().endAt.toMillis() === slot.end) : undefined;
+      if (exact && (exact.id === slot.ref.id || exact.data().status === "available")) { ids.push(exact.id); continue; }
       const old = current.docs.find(d => d.id === slot.ref.id)?.data();
+      if (bulk && old) throw new HttpsError("failed-precondition", "이전에 등록한 시간이 수정되었습니다. 현재 일정을 확인해 주세요.");
       if (old && old.status !== "available") throw new HttpsError("failed-precondition", "예약된 시간은 수정할 수 없습니다.");
-      if (current.docs.some(d => d.id !== slot.ref.id && d.data().startAt.toMillis() < slot.end && d.data().endAt.toMillis() > slot.start) || parsed.some(other => other !== slot && other.start < slot.end && other.end > slot.start)) throw new HttpsError("already-exists", "겹치는 시간이 있습니다.");
+      if (current.docs.some(d => d.id !== slot.ref.id && d.data().startAt.toMillis() < slot.end && d.data().endAt.toMillis() > slot.start)) throw new HttpsError("already-exists", "겹치는 시간이 있습니다.");
+      ids.push(slot.ref.id);
+      writes.push(slot);
     }
-    for (const slot of parsed) tx.set(slot.ref, {coachUid: uid, startAt: Timestamp.fromMillis(slot.start), endAt: Timestamp.fromMillis(slot.end), status: "available", updatedAt: FieldValue.serverTimestamp()});
+    for (const slot of writes) tx.set(slot.ref, {coachUid: uid, startAt: Timestamp.fromMillis(slot.start), endAt: Timestamp.fromMillis(slot.end), status: "available", updatedAt: FieldValue.serverTimestamp()});
   });
-  return bulk ? {slotIds: parsed.map(s => s.ref.id)} : {slotId: parsed[0].ref.id};
+  return bulk ? {slotIds: ids} : {slotId: parsed[0].ref.id};
 }
 export const saveAvailabilitySlot = onCall(options, r => save(r, false));
 export const saveAvailabilitySlots = onCall(options, r => save(r, true));

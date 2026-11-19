@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../config/onepoint_design.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/user_profile_service.dart';
@@ -275,18 +276,16 @@ class _SignupScreenState extends State<SignupScreen> {
             ? '$roleText 프로필 등록'
             : '$roleText 회원가입';
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0F12),
+      backgroundColor: OnepointDesign.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0F12),
+        backgroundColor: OnepointDesign.background,
         elevation: 0,
-        title: Text(title,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(title, style: OnepointDesign.heading),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoadingProfile
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF38BDF8)))
+              child: CircularProgressIndicator(color: OnepointDesign.blue))
           : _profileLoadFailed
               ? Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -309,10 +308,10 @@ class _SignupScreenState extends State<SignupScreen> {
                             height: 120,
                             clipBehavior: Clip.antiAlias,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1A1C29),
+                              color: OnepointDesign.surface,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color: const Color(0xFF38BDF8), width: 1.5),
+                                  color: OnepointDesign.blue, width: 1.5),
                             ),
                             child: ProfilePhoto(image: _profileImage),
                           ),
@@ -322,7 +321,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             icon: const Icon(Icons.add_a_photo_outlined),
                             label: const Text('갤러리에서 사진 선택'),
                             style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFF38BDF8)),
+                                foregroundColor: OnepointDesign.blue),
                           ),
                           if (_profileImage.isNotEmpty)
                             TextButton(
@@ -403,7 +402,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               key: const ValueKey('profile-save'),
                               onPressed: _isLoading ? null : _save,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF38BDF8),
+                                backgroundColor: OnepointDesign.lime,
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12)),
                               ),
@@ -419,7 +418,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                       style: const TextStyle(
                                           color: Colors.black,
                                           fontSize: 16,
-                                          fontWeight: FontWeight.bold)),
+                                          fontWeight: FontWeight.w600)),
                             )),
                       ]),
                 )),
@@ -428,7 +427,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Widget _sectionTitle(String text) => Text(text,
       style: const TextStyle(
-          color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold));
+          color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600));
 
   Widget _consentRow(String label, String key, bool value,
           ValueChanged<bool> onChanged, String content) =>
@@ -436,7 +435,8 @@ class _SignupScreenState extends State<SignupScreen> {
         Checkbox(
             key: ValueKey(key),
             value: value,
-            activeColor: const Color(0xFF38BDF8),
+            activeColor: OnepointDesign.lime,
+            checkColor: Colors.black,
             onChanged:
                 _isLoading ? null : (value) => onChanged(value ?? false)),
         Expanded(
@@ -446,7 +446,7 @@ class _SignupScreenState extends State<SignupScreen> {
             onPressed: () => showDialog<void>(
                 context: context,
                 builder: (context) => AlertDialog(
-                      backgroundColor: const Color(0xFF1A1C29),
+                      backgroundColor: OnepointDesign.surface,
                       title: Text(label,
                           style: const TextStyle(color: Colors.white)),
                       content: SingleChildScrollView(
@@ -488,7 +488,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ? const Icon(Icons.lock_outline, color: Colors.white38, size: 18)
               : null,
           filled: true,
-          fillColor: const Color(0xFF1A1C29),
+          fillColor: OnepointDesign.surface,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           enabledBorder: OutlineInputBorder(
@@ -497,7 +497,7 @@ class _SignupScreenState extends State<SignupScreen> {
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:
-                  const BorderSide(color: Color(0xFF38BDF8), width: 1.5)),
+                  const BorderSide(color: OnepointDesign.blue, width: 1.5)),
         ),
       ),
     ]);
@@ -516,16 +516,21 @@ class _SignupScreenState extends State<SignupScreen> {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
-            color: const Color(0xFF1A1C29),
+            color: OnepointDesign.surface,
             borderRadius: BorderRadius.circular(12)),
         child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
           key: const ValueKey('profile-tier'),
           value: _selectedTier,
           isExpanded: true,
-          dropdownColor: const Color(0xFF1A1C29),
+          dropdownColor: OnepointDesign.surface,
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontFamilyFallback: ['Pretendard'],
+            color: Colors.white,
+            fontSize: 15,
+          ),
           items: tiers
               .map((tier) => DropdownMenuItem(value: tier, child: Text(tier)))
               .toList(),
@@ -538,7 +543,7 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
       const SizedBox(height: 6),
       const Text('목표 티어는 자유롭게 선택할 수 있으며, 현재 티어는 레슨 참여와 활동에 따라 결정됩니다.',
-          style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11)),
+          style: TextStyle(color: OnepointDesign.blue, fontSize: 11)),
     ]);
   }
 }

@@ -1,0 +1,31 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-18T10:27:01.078Z",
+  "functions": [
+    {
+      "name": "saveAvailabilitySlots",
+      "state": "ACTIVE",
+      "region": "asia-northeast3",
+      "updateTime": "2026-11-18T10:25:50.454528569Z"
+    },
+    {
+      "name": "saveAvailabilitySlot",
+      "state": "ACTIVE",
+      "region": "asia-northeast3",
+      "updateTime": "2026-11-18T10:25:44.999492943Z"
+    }
+  ],
+  "sourceSha256": "42598820244b2729eac2e2ae16bac3f3d97e5d0660b724d61b4d908cc29184d3",
+  "validation": {
+    "flutterTests": 156,
+    "functionTests": 25,
+    "securityWorkflowTests": 34
+  },
+  "behavior": [
+    "No two-year selection horizon or total selection cap",
+    "100 ranges per transaction, client-side batching with confirmed progress and remaining-range retry",
+    "Idempotent bulk saves preserve booked slots and reject overwriting an edited deterministic slot",
+    "Only the active approved coach can register their own availability"
+  ],
+  "productionDataWrites": false
+}

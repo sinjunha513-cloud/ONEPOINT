@@ -11,6 +11,7 @@ import 'package:onepoint_lesson/screens/session_gate_screen.dart';
 import 'package:onepoint_lesson/screens/splash_screen.dart';
 import 'package:onepoint_lesson/screens/instructor_registration_screen.dart';
 import 'package:onepoint_lesson/services/auth_service.dart';
+import 'package:onepoint_lesson/widgets/session_entrance.dart';
 
 class _TestAuth extends AuthService {
   _TestAuth()
@@ -22,6 +23,8 @@ class _TestAuth extends AuthService {
   bool failProfileRead = false;
   Object? googleError;
   Completer<User?>? googlePending;
+  Completer<User?>? emailPending;
+  int emailCalls = 0;
   StreamController<User?>? sessionUpdates;
   int googleCalls = 0;
   String? email;
@@ -59,6 +62,8 @@ class _TestAuth extends AuthService {
       {required String email, required String password}) async {
     this.email = email;
     this.password = password;
+    emailCalls++;
+    if (emailPending != null) return emailPending!.future;
     return user = MockUser(uid: 'email-user', email: email);
   }
 
@@ -98,6 +103,7 @@ void main() {
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(find.byType(RoleSelectionScreen), findsNothing);
     expect(find.byKey(const ValueKey('login-email')), findsOneWidget);
+    expect(find.text('원포인트'), findsNothing);
   });
   Future<void> show(WidgetTester tester, Widget screen) async {
     await tester.binding.setSurfaceSize(const Size(500, 1000));
@@ -208,6 +214,76 @@ void main() {
     expect(find.text('인증된 홈'), findsOneWidget);
   });
 
+  testWidgets('email Enter moves focus and password Enter submits only once',
+      (tester) async {
+    final service = _TestAuth()..emailPending = Completer<User?>();
+    await show(tester, LoginScreen(service: service, homeBuilder: _home));
+    await tester.enterText(
+        find.byKey(const ValueKey('login-email')), 'member@example.com');
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('login-password')))
+            .focusNode!
+            .hasFocus,
+        isTrue);
+    await tester.enterText(
+        find.byKey(const ValueKey('login-password')), 'password');
+    await tester.testTextInput.receiveAction(TextInputAction.go);
+    await tester.pump();
+    expect(service.emailCalls, 1);
+    expect(tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+        isNull);
+    final user = MockUser(uid: 'email-user');
+    service.user = user;
+    service.emailPending!.complete(user);
+    for (var frame = 0;
+        frame < 20 && find.byType(SessionEntrance).evaluate().isEmpty;
+        frame++) {
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 80));
+    final transition = find
+        .descendant(
+            of: find.byType(SessionEntrance),
+            matching: find.byType(FadeTransition))
+        .first;
+    expect(tester.widget<FadeTransition>(transition).opacity.value,
+        inExclusiveRange(0, 1));
+    await tester.pumpAndSettle();
+    expect(find.text('인증된 홈'), findsOneWidget);
+    expect(tester.widget<FadeTransition>(transition).opacity.value, 1);
+  });
+
+  testWidgets('empty password Enter keeps login and displays validation',
+      (tester) async {
+    final service = _TestAuth();
+    await show(tester, LoginScreen(service: service, homeBuilder: _home));
+    await tester.enterText(find.byKey(const ValueKey('login-password')), '');
+    await tester.testTextInput.receiveAction(TextInputAction.go);
+    await tester.pumpAndSettle();
+    expect(service.emailCalls, 0);
+    expect(find.text('이메일과 비밀번호를 모두 입력해주세요.'), findsOneWidget);
+  });
+
+  testWidgets('reduced motion shows the resolved home without animation',
+      (tester) async {
+    await show(
+        tester,
+        MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: SessionGateScreen(
+                service: _TestAuth()..user = MockUser(uid: 'member'),
+                homeBuilder: _home)));
+    final fade = find
+        .descendant(
+            of: find.byType(SessionEntrance),
+            matching: find.byType(FadeTransition))
+        .first;
+    expect(tester.widget<FadeTransition>(fade).opacity.value, 1);
+  });
+
   testWidgets('app restart restores a completed session', (tester) async {
     final service = _TestAuth()..user = MockUser(uid: 'returning-user');
     await show(tester, SessionGateScreen(service: service, homeBuilder: _home));
@@ -263,6 +339,15 @@ void main() {
       ..incomplete = true;
     await show(tester, SessionGateScreen(service: service, homeBuilder: _home));
     await tester.tap(find.text('다른 계정으로 로그인'));
+    await tester.pumpAndSettle();
+    expect(service.currentUser, isNotNull);
+    expect(find.text('정말 로그아웃하시겠습니까?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('cancel-logout')));
+    await tester.pumpAndSettle();
+    expect(service.currentUser, isNotNull);
+    await tester.tap(find.text('다른 계정으로 로그인'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirm-logout')));
     await tester.pumpAndSettle();
     expect(service.currentUser, isNull);
     expect(find.byType(LoginScreen), findsOneWidget);

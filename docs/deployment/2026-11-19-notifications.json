@@ -1,0 +1,69 @@
+{
+  "project": "onlyonepoint-lesson",
+  "taskDate": "2026-11-19",
+  "verifiedAt": "2026-11-19T02:58:36.311Z",
+  "functions": [
+    {
+      "name": "notifyChatMessage",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T02:58:08.626437513Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyCoachReview",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T02:58:09.714285250Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyFeedReaction",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T02:58:12.100716552Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "syncMyNotifications",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T02:57:51.050786812Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyLessonFeedback",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T02:58:12.662308350Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyLessonActivity",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T02:58:08.781685006Z",
+      "region": "asia-northeast3"
+    }
+  ],
+  "rules": {
+    "ruleset": "projects/onlyonepoint-lesson/rulesets/b0e86888-6aa5-4858-8c17-74f98c524d16",
+    "updateTime": "2026-11-19T02:57:04.246308Z",
+    "matchesLocalSource": true,
+    "sha256": "6063b09939ba9089bf9553c721109ab06358fbab90434ab9bf5235a5bbbc6404"
+  },
+  "sourceSha256": "c65a1de92aded37e80dc2e8d273ddd98313de1b6d2145e95232c82ac3c108bf5",
+  "validation": {
+    "flutterTests": 166,
+    "functionTests": 25,
+    "emulatorTests": 37,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed"
+  },
+  "verification": "Management API verification and a rejected unauthenticated callable probe; no synthetic production events.",
+  "callableAuthentication": {
+    "unauthenticatedStatus": 401,
+    "error": "UNAUTHENTICATED"
+  },
+  "scope": [
+    "Owner-only notification inbox and read state",
+    "Lesson, schedule, chat, feedback, verified badge, coach review and feed reaction notifications",
+    "Paginated owner-only initial activity sync",
+    "New coach applications restricted to incomplete coach signup"
+  ],
+  "backup": ".security-review-backups/notifications-20261119"
+}

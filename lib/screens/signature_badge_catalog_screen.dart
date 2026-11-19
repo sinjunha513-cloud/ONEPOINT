@@ -1,3 +1,4 @@
+import '../config/onepoint_design.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -46,9 +47,9 @@ class SignatureBadgeCatalogScreen extends StatefulWidget {
 
 class _SignatureBadgeCatalogScreenState
     extends State<SignatureBadgeCatalogScreen> {
-  static const _background = Color(0xFF070D1B);
-  static const _surface = Color(0xFF101A2C);
-  static const _muted = Color(0xFFABB5C8);
+  static const _background = OnepointDesign.background;
+  static const _surface = OnepointDesign.surface;
+  static const _muted = OnepointDesign.muted;
 
   late final SignatureBadgeService _service;
   late Stream<List<SignatureBadge>> _catalog;
@@ -174,7 +175,7 @@ class _SignatureBadgeCatalogScreenState
       floatingActionButton: FloatingActionButton.extended(
         key: const ValueKey('create-signature-badge'),
         onPressed: _busy ? null : _createBadge,
-        backgroundColor: const Color(0xFFC6FF00),
+        backgroundColor: OnepointDesign.lime,
         foregroundColor: _background,
         icon: _busy
             ? const SizedBox.square(
@@ -318,7 +319,7 @@ class _SignatureBadgeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = signatureBadgeColor(badge.colorIndex);
     return Material(
-      color: const Color(0xFF101A2C),
+      color: OnepointDesign.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
         side: BorderSide(
@@ -355,7 +356,7 @@ class _SignatureBadgeCard extends StatelessWidget {
               Text(
                 selected ? '내 시그니처' : '선택하기',
                 style: TextStyle(
-                    color: selected ? color : const Color(0xFFABB5C8),
+                    color: selected ? color : OnepointDesign.muted,
                     fontSize: 11,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w400),
               ),
@@ -441,7 +442,7 @@ class _CatalogMessage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 52, color: const Color(0xFFC6FF00)),
+              Icon(icon, size: 52, color: OnepointDesign.lime),
               const SizedBox(height: 16),
               Text(title,
                   textAlign: TextAlign.center,
@@ -452,8 +453,8 @@ class _CatalogMessage extends StatelessWidget {
               const SizedBox(height: 8),
               Text(message,
                   textAlign: TextAlign.center,
-                  style:
-                      const TextStyle(color: Color(0xFFABB5C8), height: 1.5)),
+                  style: const TextStyle(
+                      color: OnepointDesign.muted, height: 1.5)),
               if (onRetry != null) ...[
                 const SizedBox(height: 18),
                 OutlinedButton(onPressed: onRetry, child: const Text('다시 시도')),

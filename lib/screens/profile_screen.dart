@@ -1,3 +1,4 @@
+import '../config/onepoint_design.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +6,7 @@ import 'login_screen.dart';
 import 'signup_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/profile_photo.dart';
+import '../widgets/logout_confirmation.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? targetUserId; // null이면 내 프로필, 값이 있으면 해당 유저 프로필
@@ -21,6 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _signingOut = false;
 
   late bool _isMyProfile;
   late String _profileUid;
@@ -96,13 +99,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 로그아웃
   Future<void> _handleLogout() async {
-    await AuthService().signOut();
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
+    if (_signingOut) return;
+    setState(() => _signingOut = true);
+    try {
+      if (!await confirmLogout(context) || !mounted) return;
+      await AuthService().signOut();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (_) => false);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('로그아웃하지 못했습니다. 다시 시도해 주세요.')));
+      }
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
     }
   }
 
@@ -148,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.white54),
               tooltip: '로그아웃',
-              onPressed: _handleLogout,
+              onPressed: _signingOut ? null : _handleLogout,
             )
           // 상대방 프로필인 경우: 상단 앱바에도 신고하기 버튼 배치
           else
@@ -237,7 +251,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF38BDF8),
+                    backgroundColor: OnepointDesign.lime,
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),

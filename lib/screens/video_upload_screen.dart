@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/video_upload_service.dart';
+import '../widgets/onepoint_app_bar.dart';
+import '../widgets/onepoint_icon.dart';
 
 class VideoUploadScreen extends StatefulWidget {
-  const VideoUploadScreen({super.key, this.lessonId});
+  const VideoUploadScreen({super.key, this.lessonId, this.service});
 
   final String? lessonId;
+  final VideoUploadService? service;
 
   @override
   State<VideoUploadScreen> createState() => _VideoUploadScreenState();
@@ -17,7 +20,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   final _picker = ImagePicker();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _service = VideoUploadService();
+  late final _service = widget.service ?? VideoUploadService();
   XFile? _selectedVideo;
   int? _selectedBytes;
   UploadTask? _task;
@@ -130,8 +133,8 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(_isFeedback ? '레슨 피드백 영상 등록' : '숏폼 영상 등록'),
+        appBar: OnepointAppBar(
+          title: _isFeedback ? '레슨 피드백 영상 등록' : '숏폼 영상 등록',
         ),
         body: SafeArea(
           child: ListView(
@@ -141,21 +144,26 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                 onTap: _uploading ? null : _pickVideo,
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  height: 200,
+                  height: MediaQuery.sizeOf(context)
+                      .width
+                      .clamp(240, 380)
+                      .toDouble(),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
+                    color: const Color(0xFF252525),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF38BDF8)),
+                    border: Border.all(color: const Color(0xFF24A9FF)),
                   ),
                   child: _selectedVideo == null
                       ? const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.video_call_rounded,
-                                size: 48, color: Color(0xFF38BDF8)),
+                            OnepointIcon('video-upload', width: 63, height: 36),
                             SizedBox(height: 8),
-                            Text('갤러리에서 영상 선택',
-                                style: TextStyle(color: Colors.white70)),
+                            Text('영상 선택하기',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600)),
                             SizedBox(height: 4),
                             Text('최대 100MB',
                                 style: TextStyle(color: Colors.white54)),
@@ -247,6 +255,12 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                 )
               else
                 FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFC7F000),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16))),
                   onPressed: _upload,
                   icon: Icon(_error == null
                       ? Icons.cloud_upload_rounded
@@ -264,7 +278,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
         labelStyle: const TextStyle(color: Colors.white70),
         hintStyle: const TextStyle(color: Colors.white38),
         filled: true,
-        fillColor: const Color(0xFF1E293B),
+        fillColor: const Color(0xFF252525),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -275,7 +289,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 2),
+          borderSide: const BorderSide(color: Color(0xFF24A9FF), width: 2),
         ),
       );
 }

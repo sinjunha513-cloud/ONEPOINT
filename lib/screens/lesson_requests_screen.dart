@@ -1,3 +1,4 @@
+import '../config/onepoint_design.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -12,17 +13,21 @@ import 'chat_room_screen.dart';
 import 'lesson_badges_screen.dart';
 import 'lesson_feedback_videos_screen.dart';
 import 'lesson_slot_picker_screen.dart';
+import '../widgets/onepoint_icon.dart';
+import '../widgets/onepoint_lesson_icon.dart';
 
 class LessonRequestsScreen extends StatefulWidget {
   final MatchingService? service;
   final PaymentService? paymentService;
   final CoachAvailabilityService? availabilityService;
+  final String? initialLessonId;
 
   const LessonRequestsScreen({
     super.key,
     this.service,
     this.paymentService,
     this.availabilityService,
+    this.initialLessonId,
   });
 
   @override
@@ -33,6 +38,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
   late final MatchingService _service;
   late Stream<QuerySnapshot<Map<String, dynamic>>> _lessons;
   final Set<String> _busyRequests = {};
+  String _direction = '전체';
   late final _payments = widget.paymentService ?? PaymentService();
   CoachAvailabilityService? _availabilityInstance;
   CoachAvailabilityService get _availability => _availabilityInstance ??=
@@ -238,28 +244,71 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final lessons = snapshot.data!.docs.toList()
+          final all = snapshot.data!.docs;
+          final lessons = all
+              .where((d) =>
+                  _direction == '전체' ||
+                  d.data()[_direction == '보낸 신청'
+                          ? 'studentUid'
+                          : 'instructorUid'] ==
+                      _service.currentUid)
+              .toList()
             ..sort((a, b) {
+              if (a.id == widget.initialLessonId) return -1;
+              if (b.id == widget.initialLessonId) return 1;
               final byDate =
                   _createdAt(b.data()).compareTo(_createdAt(a.data()));
               return byDate != 0 ? byDate : a.id.compareTo(b.id);
             });
-          if (lessons.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  '아직 레슨 내역이 없습니다.\n홈에서 코치를 선택해 레슨을 신청해 보세요.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: lessons.length,
-            itemBuilder: (context, index) => _buildLesson(lessons[index]),
-          );
+          return Column(children: [
+            Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final label in ['전체', '보낸 신청', '받은 신청'])
+                    ChoiceChip(
+                        key: ValueKey('lessons-$label'),
+                        label: Text(label),
+                        selected: _direction == label,
+                        selectedColor: OnepointDesign.lime,
+                        backgroundColor: OnepointDesign.surface,
+                        showCheckmark: false,
+                        side: BorderSide(
+                            color: _direction == label
+                                ? OnepointDesign.lime
+                                : Colors.white12),
+                        labelStyle: OnepointDesign.control.copyWith(
+                            color: _direction == label
+                                ? Colors.black
+                                : Colors.white),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        onSelected: (_) => setState(() => _direction = label))
+                ])),
+            Expanded(
+                child: lessons.isEmpty
+                    ? Center(
+                        child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const OnepointLessonIcon(),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                      _direction == '받은 신청'
+                                          ? '받은 레슨 신청이 없습니다.'
+                                          : _direction == '보낸 신청'
+                                              ? '보낸 레슨 신청이 없습니다.'
+                                              : '아직 레슨 내역이 없습니다.\n홈에서 코치를 선택해 레슨을 신청해 보세요.',
+                                      textAlign: TextAlign.center),
+                                ])))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: lessons.length,
+                        itemBuilder: (context, index) =>
+                            _buildLesson(lessons[index]),
+                      ))
+          ]);
         },
       ),
     );
@@ -296,6 +345,14 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
         studentUid != instructorUid;
 
     return Card(
+      key: ValueKey('lesson-card-${lesson.id}'),
+      color: OnepointDesign.surface,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+              color: lesson.id == widget.initialLessonId
+                  ? OnepointDesign.blue
+                  : Colors.transparent)),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -304,6 +361,25 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
           children: [
             Row(
               children: [
+                Container(
+                    width: 42,
+                    height: 42,
+                    padding: const EdgeInsets.all(9),
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                        color: OnepointDesign.background,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: switch (data['sport']) {
+                      '축구' => const OnepointIcon('sport-football',
+                          width: 24, height: 24, color: OnepointDesign.lime),
+                      '농구' => const OnepointIcon('sport-basketball',
+                          width: 24, height: 24, color: OnepointDesign.lime),
+                      '테니스' => const OnepointIcon('sport-tennis',
+                          width: 24, height: 24, color: OnepointDesign.lime),
+                      '배드민턴' => const OnepointIcon('badminton',
+                          width: 24, height: 24, color: OnepointDesign.lime),
+                      _ => const OnepointLessonIcon(),
+                    }),
                 Expanded(
                   child: Text(
                     '$targetName ${isInstructor ? '수강생' : '코치'}',
@@ -327,9 +403,9 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF102238),
+                color: OnepointDesign.background,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF28527A)),
+                border: Border.all(color: Colors.white12),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -738,10 +814,10 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: OnepointDesign.surface,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: const TextStyle(
-          color: Color(0xFF0F172A), fontSize: 20, fontWeight: FontWeight.bold),
+          color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
       title: const Text('레슨 완료 및 평가'),
       content: SizedBox(
         width: 520,
@@ -749,7 +825,11 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
           child: Form(
             key: _formKey,
             child: DefaultTextStyle(
-              style: const TextStyle(color: Color(0xFF1E293B), height: 1.45),
+              style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontFamilyFallback: ['Pretendard'],
+                  color: Colors.white,
+                  height: 1.45),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -762,7 +842,7 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
                     key: const ValueKey('lesson-signature-move'),
                     controller: _signatureController,
                     readOnly: true,
-                    style: const TextStyle(color: Color(0xFF0F172A)),
+                    style: const TextStyle(color: Colors.white),
                     decoration: _fieldDecoration(
                       label: '지급할 시그니처 뱃지',
                       hint: '마이페이지에서 시그니처 뱃지를 먼저 선택해 주세요.',
@@ -781,11 +861,11 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<double>(
-                    dropdownColor: Colors.white,
-                    style: const TextStyle(color: Color(0xFF0F172A)),
+                    dropdownColor: OnepointDesign.surface,
+                    style: const TextStyle(color: Colors.white),
                     decoration: _fieldDecoration(label: '수강생 평가 점수'),
                     hint: const Text('1~5점 선택',
-                        style: TextStyle(color: Color(0xFF64748B))),
+                        style: TextStyle(color: OnepointDesign.muted)),
                     items: List.generate(5, (index) {
                       final score = index + 1;
                       return DropdownMenuItem(
@@ -801,7 +881,7 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
                   TextFormField(
                     key: const ValueKey('lesson-feedback'),
                     controller: _feedbackController,
-                    style: const TextStyle(color: Color(0xFF0F172A)),
+                    style: const TextStyle(color: Colors.white),
                     decoration: _fieldDecoration(
                       label: '피드백 (선택)',
                       hint: '잘한 점과 연습할 점을 남겨 주세요.',
@@ -822,10 +902,10 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
                           key: const ValueKey('lesson-attendance-confirmation'),
                           contentPadding: EdgeInsets.zero,
                           controlAffinity: ListTileControlAffinity.leading,
-                          activeColor: const Color(0xFF0284C7),
+                          activeColor: OnepointDesign.blue,
                           title: const Text(
                             '실제 레슨 참여를 확인했습니다.',
-                            style: TextStyle(color: Color(0xFF0F172A)),
+                            style: TextStyle(color: Colors.white),
                           ),
                           value: field.value ?? false,
                           onChanged: field.didChange,
@@ -847,13 +927,9 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('닫기', style: TextStyle(color: Color(0xFF475569))),
+          child: const Text('닫기'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF0284C7),
-            foregroundColor: Colors.white,
-          ),
           onPressed: () {
             if (!_formKey.currentState!.validate()) return;
             Navigator.pop(
@@ -882,19 +958,19 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
         helperMaxLines: 2,
         alignLabelWithHint: alignLabelWithHint,
         suffixIcon: suffixIcon,
-        labelStyle: const TextStyle(color: Color(0xFF475569)),
-        hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
-        helperStyle: const TextStyle(color: Color(0xFF64748B)),
+        labelStyle: const TextStyle(color: OnepointDesign.muted),
+        hintStyle: const TextStyle(color: OnepointDesign.muted),
+        helperStyle: const TextStyle(color: OnepointDesign.muted),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: OnepointDesign.background,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+          borderSide: const BorderSide(color: Colors.white24),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF0284C7), width: 2),
+          borderSide: const BorderSide(color: OnepointDesign.blue, width: 2),
         ),
       );
 }

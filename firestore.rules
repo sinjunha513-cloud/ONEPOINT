@@ -226,6 +226,14 @@ service cloud.firestore {
           .hasOnly(['nextSequence', 'lastBadgeId', 'updatedAt']);
     }
 
+    match /users/{uid}/notifications/{notificationId} {
+      allow read: if signedIn() && own(uid);
+      allow update: if signedIn() && own(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt == request.time;
+      allow create, delete: if false;
+    }
+
     match /instructors/{uid} {
       allow get: if own(uid) || admin();
       allow list: if admin();
@@ -241,7 +249,9 @@ service cloud.firestore {
           && validOptionalSignatureSelection(data)
           && data.submittedAt == request.time && data.updatedAt == request.time;
       }
-      allow create: if submission() && request.resource.data.keys().hasOnly([
+      allow create: if submission() && user(uid).get('profileCompleted', false) == false
+        && user(uid).get('requestedRole', '') == 'coach'
+        && request.resource.data.keys().hasOnly([
           'uid', 'userId', 'name', 'sport', 'lessonLevel', 'career', 'signatureMove',
           'signatureBadgeId', 'signatureBadgeColorIndex', 'status',
           'submittedAt', 'updatedAt', 'rating', 'createdAt', 'careerPdfId'])

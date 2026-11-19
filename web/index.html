@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="원포인트에서 스포츠 코치를 만나 레슨을 신청하고, 플레이 영상을 공유하고, 시그니처 뱃지를 모아 보세요.">
-  <meta name="theme-color" content="#0D0F12">
+  <meta name="theme-color" content="#070101">
   <meta property="og:title" content="ONEPOINT · 원포인트 레슨">
   <meta property="og:description" content="나에게 맞는 코치와 레슨, 플레이 영상, 나만의 시그니처 뱃지.">
   <meta property="og:type" content="website">
@@ -35,7 +35,7 @@
     body {
       margin: 0;
       min-height: 100%;
-      background-color: #0D0F12;
+      background-color: #070101;
       background-size: 100% 100%;
     }
 
@@ -103,7 +103,7 @@
     // An active legacy service worker can otherwise keep serving an obsolete
     // main.dart.js even after Firebase Hosting has received a new release.
     (async () => {
-      const cleanupKey = 'onepoint-web-cache-cleanup-v7';
+      const cleanupKey = 'onepoint-web-cache-cleanup-v8';
       let hadLegacyWorker = false;
 
       if ('serviceWorker' in navigator) {
@@ -120,14 +120,14 @@
       if (hadLegacyWorker && !sessionStorage.getItem(cleanupKey)) {
         sessionStorage.setItem(cleanupKey, 'done');
         const refreshedUrl = new URL(window.location.href);
-        refreshedUrl.searchParams.set('appVersion', '20261111-reels-video-delete-v4');
+        refreshedUrl.searchParams.set('appVersion', '20261119-activity-inbox-v1');
         window.location.replace(refreshedUrl.toString());
         return;
       }
 
       sessionStorage.removeItem(cleanupKey);
       const bootstrap = document.createElement('script');
-      bootstrap.src = 'flutter_bootstrap.js?v=20261111-reels-video-delete-v4';
+      bootstrap.src = 'flutter_bootstrap.js?v=20261119-activity-inbox-v1';
       bootstrap.async = true;
       document.body.appendChild(bootstrap);
     })();

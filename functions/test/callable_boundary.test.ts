@@ -3,6 +3,7 @@ import {test} from "node:test";
 import {CallableRequest, HttpsError} from "firebase-functions/v2/https";
 import {cancelPayment, confirmPayment, getPaymentStatus, preparePayment, object} from "../src/index";
 import {requestId} from "../src/domain";
+import {syncMyNotifications} from "../src/notifications";
 
 function request(uid?: string, data: unknown = {}): CallableRequest {
   return {data, auth: uid ? {uid, token: {}} : undefined} as CallableRequest;
@@ -10,7 +11,7 @@ function request(uid?: string, data: unknown = {}): CallableRequest {
 const errorCode = (code: string) => (error: unknown) => error instanceof HttpsError && error.code === code;
 
 test("all callable endpoints reject missing authentication before accessing Firestore", async () => {
-  for (const callable of [preparePayment, getPaymentStatus, confirmPayment, cancelPayment]) {
+  for (const callable of [preparePayment, getPaymentStatus, confirmPayment, cancelPayment, syncMyNotifications]) {
     await assert.rejects(callable.run(request()), errorCode("unauthenticated"));
   }
 });

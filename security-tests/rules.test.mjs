@@ -232,6 +232,104 @@ test('server boundaries reject missing/incomplete/suspended accounts and forged 
   }
   await assert.rejects(call('requestLesson','student',{instructorId:'coach',paymentRequired:false,price:1}),{code:'invalid-argument'});
 });
+test('bulk scheduling: idempotent retries preserve bookings and cannot overwrite edited slots', async () => {
+  const start = Date.now() + 1000 * 86400000;
+  const slots = [0, 1].map(i => ({startAtMillis: start + i * 3600000, endAtMillis: start + (i + 1) * 3600000}));
+  await assert.rejects(call('saveAvailabilitySlots', 'student', {slots}), {code: 'permission-denied'});
+  await assert.rejects(call('saveAvailabilitySlots', 'coach', {coachUid: 'other', slots}), {code: 'permission-denied'});
+  await assert.rejects(call('saveAvailabilitySlots', 'coach', {slots: [slots[0], slots[0]]}), {code: 'already-exists'});
+  const result = await call('saveAvailabilitySlots', 'coach', {coachUid: 'coach', slots});
+  assert.deepEqual(await call('saveAvailabilitySlots', 'coach', {slots}), result);
+  const path = 'instructors/coach/availability';
+  assert.equal((await getDocs(collection(db('coach'), path))).size, 2);
+  const {lessonId} = await call('requestLessonWithSlot', 'student', {instructorId: 'coach', slotId: result.slotIds[0]});
+  assert.deepEqual(await call('saveAvailabilitySlots', 'coach', {slots}), result);
+  const booked = (await getDoc(doc(db('coach'), `${path}/${result.slotIds[0]}`))).data();
+  assert.equal(booked.status, 'booked');
+  assert.equal(booked.lessonId, lessonId);
+  await assert.rejects(call('saveAvailabilitySlots', 'coach', {slots: [{startAtMillis: start + 1000, endAtMillis: start + 3600000}]}), {code: 'already-exists'});
+  const moved = {startAtMillis: start + 3 * 3600000, endAtMillis: start + 4 * 3600000};
+  await call('saveAvailabilitySlot', 'coach', {slotId: result.slotIds[1], ...moved});
+  await assert.rejects(call('saveAvailabilitySlots', 'coach', {slots: [slots[1]]}), {code: 'failed-precondition'});
+  const edited = (await getDoc(doc(db('coach'), `${path}/${result.slotIds[1]}`))).data();
+  assert.equal(edited.startAt.toMillis(), moved.startAtMillis);
+  assert.equal((await getDocs(collection(db('coach'), path))).size, 2);
+});
+
+test('notification inbox: owner-only read state, no forged notices or cross-account backfill', async () => {
+  const data = {kind:'chat',title:'private',body:'message preview',targetType:'chat',targetId:'coach_student',createdAt:new Date(),readAt:null};
+  await seed('users/student/notifications/notice',data);
+  await assertSucceeds(getDocs(collection(db('student'),'users/student/notifications')));
+  for (const uid of ['coach','other','admin','suspended','incomplete',null]) {
+    await assertFails(getDoc(doc(db(uid),'users/student/notifications/notice')));
+    await assertFails(getDocs(collection(db(uid),'users/student/notifications')));
+  }
+  const own = doc(db('student'),'users/student/notifications/notice');
+  await assertFails(setDoc(doc(db('student'),'users/student/notifications/forged'),data));
+  await assertFails(updateDoc(own,{title:'forged',readAt:serverTimestamp()}));
+  await assertFails(updateDoc(own,{readAt:new Date(0)}));
+  await assertFails(deleteDoc(own));
+  await assertSucceeds(updateDoc(own,{readAt:serverTimestamp()}));
+  for (const uid of [null,'incomplete','suspended','missing']) {
+    await assert.rejects(call('syncMyNotifications',uid,{}),{code:uid ? 'permission-denied':'unauthenticated'});
+  }
+  await assert.rejects(call('syncMyNotifications','student',{uid:'coach'}),{code:'invalid-argument'});
+});
+
+test('notification events: participants only, unread preservation and idempotent history sync', async () => {
+  const {Timestamp} = createRequire(new URL('../functions/package.json', import.meta.url))('firebase-admin/firestore');
+  const notices = require('../functions/lib/src/notifications.js');
+  const at = Timestamp.now();
+  const data = {...lesson,createdAt:at,updatedAt:at};
+  await seed('lesson_requests/event',{...lesson,createdAt:new Date(),updatedAt:new Date()});
+  await notices.notifyLesson('event',data);
+  const studentNotices = () => getDocs(collection(db('student'),'users/student/notifications'));
+  assert.equal((await studentNotices()).size,1);
+  assert.equal((await getDocs(collection(db('coach'),'users/coach/notifications'))).size,1);
+  assert.equal((await getDocs(collection(db('other'),'users/other/notifications'))).size,0);
+  const first = (await studentNotices()).docs[0];
+  await assertSucceeds(updateDoc(first.ref,{readAt:serverTimestamp()}));
+  await notices.notifyLesson('event',data);
+  assert.ok((await getDoc(first.ref)).data().readAt);
+  await notices.notifyLesson('event',{...data,status:'completed',attendanceBadge:{instructorUid:'coach',instructorName:'coach',signatureMove:'패스',verifiedBy:'coach'},signatureMove:'패스'},data);
+  const kinds = (await studentNotices()).docs.map(d=>d.data().kind);
+  assert.ok(kinds.includes('badge'));assert.equal(kinds.filter(k=>k==='lesson').length,2);
+  await seed('chat_rooms/coach_student/messages/message',{senderId:'coach',text:'코치 피드백',createdAt:new Date()});
+  await notices.notifyChat('coach_student','message',{senderId:'coach',text:'코치 피드백',createdAt:at});
+  await notices.notifyChat('coach_student','message',{senderId:'coach',text:'코치 피드백',createdAt:at});
+  assert.equal((await studentNotices()).docs.filter(d=>d.data().kind==='chat').length,1);
+  assert.equal((await getDocs(collection(db('coach'),'users/coach/notifications'))).docs.filter(d=>d.data().kind==='chat').length,0);
+  await notices.notifyChat('coach_student','forged',{senderId:'other',text:'forged',createdAt:at});
+  assert.equal((await studentNotices()).docs.filter(d=>d.data().body==='forged').length,0);
+  await notices.notifyFeedback('event','video',{uploaderUid:'coach',uploaderName:'coach',description:'자세 피드백',createdAt:at});
+  assert.equal((await studentNotices()).docs.filter(d=>d.data().kind==='feedback').length,1);
+  const before = (await studentNotices()).size;
+  await call('syncMyNotifications','student',{category:'lessons'});
+  const after = (await studentNotices()).size;
+  await call('syncMyNotifications','student',{category:'lessons'});
+  assert.equal((await studentNotices()).size,after);
+  assert.ok(after>=before);
+  await notices.notifyCoach('coach',{status:'pending',name:'applicant',submittedAt:at});
+  const admins = await getDocs(collection(db('admin'),'users/admin/notifications'));
+  assert.equal(admins.size,1);assert.equal(admins.docs[0].data().targetType,'admin');
+  assert.equal((await getDocs(collection(db('other'),'users/other/notifications'))).size,0);
+  await seed('users/student',{...profile('student'),accountStatus:'suspended'});
+  await notices.notifyChat('coach_student','suspended',{senderId:'coach',text:'blocked',createdAt:at});
+  await env.withSecurityRulesDisabled(async c => {
+    assert.equal((await getDocs(collection(c.firestore(),'users/student/notifications'))).docs.filter(d=>d.data().body==='blocked').length,0);
+  });
+});
+
+test('new coach applications can only be created during coach signup', async () => {
+  await seed('signature_badges/kick',{name:'kick',colorIndex:7});
+  const submission = uid => ({uid,userId:uid,name:'applicant',sport:'축구',career:'experience',signatureMove:'kick',signatureBadgeId:'kick',signatureBadgeColorIndex:7,status:'pending',rating:'0.0',createdAt:serverTimestamp(),submittedAt:serverTimestamp(),updatedAt:serverTimestamp()});
+  await assertFails(setDoc(doc(db('student'),'instructors/student'),submission('student')));
+  await seed('users/other',profile('other',{profileCompleted:false,requestedRole:'student'}));
+  await assertFails(setDoc(doc(db('other'),'instructors/other'),submission('other')));
+  await seed('users/other',profile('other',{profileCompleted:false,requestedRole:'coach'}));
+  await assertSucceeds(setDoc(doc(db('other'),'instructors/other'),submission('other')));
+});
+
 test('server scheduling: owner-only slots, overlap/booking lock, reschedule and history', async () => {
   const start=Date.now()+86400000, end=start+3600000;
   await assert.rejects(call('saveAvailabilitySlot','student',{startAtMillis:start,endAtMillis:end}),{code:'permission-denied'});
