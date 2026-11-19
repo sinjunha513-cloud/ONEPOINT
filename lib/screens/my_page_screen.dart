@@ -548,11 +548,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
           children: [
             _action(
                 '프로필 및 정보 수정하기', Icons.edit_outlined, () => _editProfile(data)),
-            _action(
-                '내 할인권',
-                Icons.local_offer_outlined,
-                () => _open(CouponWalletScreen(
-                    service: CouponService(firestore: _db, auth: _auth)))),
+            if (role == 'student')
+              _action(
+                  '내 할인권',
+                  Icons.local_offer_outlined,
+                  () => _open(CouponWalletScreen(
+                      service: CouponService(firestore: _db, auth: _auth)))),
             _action(
                 role == 'admin'
                     ? '결제 관리'

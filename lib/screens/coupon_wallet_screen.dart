@@ -14,6 +14,7 @@ class CouponWalletScreen extends StatefulWidget {
 class _CouponWalletScreenState extends State<CouponWalletScreen> {
   late final _service = widget.service ?? CouponService();
   late final _coupons = _service.coupons();
+  late final _eligible = _service.eligible();
   String? _applying;
   Future<void> _apply(String id) async {
     if (_applying != null || widget.lessonId == null) return;
@@ -34,41 +35,57 @@ class _CouponWalletScreenState extends State<CouponWalletScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: Text(widget.lessonId == null ? '내 할인권' : '할인권 선택')),
-      body: Center(
-          child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _coupons,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return const Center(
-                          child: Text('할인권을 불러오지 못했습니다. 다시 시도해 주세요.'));
-                    }
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final docs = [...snapshot.data!.docs]
-                      ..sort((a, b) => b.id.compareTo(a.id));
-                    return ListView(
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          const Text('매달 레슨 10회 완료',
-                              style: OnepointDesign.heading),
-                          const SizedBox(height: 8),
-                          const Text(
-                              '월 1회, 다음 유료 레슨 1건에 10% 할인을 받을 수 있어요.\n받은 날부터 30일 이내에 적용해 주세요. 코치도 다른 코치의 레슨을 수강할 때 사용할 수 있어요.',
-                              style: TextStyle(
-                                  color: OnepointDesign.muted, height: 1.6)),
-                          const SizedBox(height: 24),
-                          if (docs.isEmpty)
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 48),
-                                child: Text(
-                                    '아직 받은 할인권이 없어요.\n홈에서 이번 달 목표를 달성하고 받아보세요.',
-                                    textAlign: TextAlign.center)),
-                          for (final doc in docs) _coupon(doc),
-                        ]);
-                  }))));
+      body: StreamBuilder<bool>(
+          stream: _eligible,
+          builder: (context, eligibility) {
+            if (eligibility.hasError) {
+              return const Center(child: Text('수강생 계정 정보를 확인하지 못했습니다.'));
+            }
+            if (!eligibility.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (eligibility.data != true) {
+              return const Center(child: Text('할인권은 수강생 전용입니다.'));
+            }
+            return Center(
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: _coupons,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return const Center(
+                                child: Text('할인권을 불러오지 못했습니다. 다시 시도해 주세요.'));
+                          }
+                          if (!snapshot.hasData) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+                          final docs = [...snapshot.data!.docs]
+                            ..sort((a, b) => b.id.compareTo(a.id));
+                          return ListView(
+                              padding: const EdgeInsets.all(20),
+                              children: [
+                                const Text('매달 레슨 20회 수강 완료',
+                                    style: OnepointDesign.heading),
+                                const SizedBox(height: 8),
+                                const Text(
+                                    '수강생 전용 혜택이에요. 월 20회 수강을 완료하면 월 1회, 다음 유료 레슨 1건에 10% 할인을 받을 수 있어요.\n받은 날부터 30일 이내에 적용해 주세요.',
+                                    style: TextStyle(
+                                        color: OnepointDesign.muted,
+                                        height: 1.6)),
+                                const SizedBox(height: 24),
+                                if (docs.isEmpty)
+                                  const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 48),
+                                      child: Text(
+                                          '아직 받은 할인권이 없어요.\n홈에서 이번 달 목표를 달성하고 받아보세요.',
+                                          textAlign: TextAlign.center)),
+                                for (final doc in docs) _coupon(doc),
+                              ]);
+                        })));
+          }));
 
   Widget _coupon(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();

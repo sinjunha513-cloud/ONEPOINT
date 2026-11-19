@@ -25,9 +25,9 @@ void main() {
     final student = MonthlyLessonGoal(
         lessons: lessons, uid: 'me', role: 'student', now: now);
     expect(student.count, 2);
-    expect(student.percent, 20);
-    expect(student.remainingPercent, 80);
-    expect(student.remainingLessons, 8);
+    expect(student.percent, 10);
+    expect(student.remainingPercent, 90);
+    expect(student.remainingLessons, 18);
     expect(student.monthKey, '202611');
     expect(
         MonthlyLessonGoal(lessons: lessons, uid: 'me', role: 'coach', now: now)
@@ -39,16 +39,31 @@ void main() {
         0);
   });
   test(
-      'ten and more completed lessons cap at 100 percent and next month resets',
+      'twenty and more completed lessons cap at 100 percent and next month resets',
       () {
     final lessons =
-        List.generate(12, (_) => lesson('me', 'coach', '2026-11-18T12:00:00Z'));
+        List.generate(22, (_) => lesson('me', 'coach', '2026-11-18T12:00:00Z'));
     final goal = MonthlyLessonGoal(
         lessons: lessons, uid: 'me', role: 'student', now: now);
-    expect(goal.count, 12);
+    expect(goal.count, 22);
     expect(goal.percent, 100);
     expect(goal.remainingLessons, 0);
     expect(goal.achieved, true);
+    final nineteen = MonthlyLessonGoal(
+        lessons: lessons.take(19), uid: 'me', role: 'student', now: now);
+    expect(nineteen.percent, 95);
+    expect(nineteen.achieved, false);
+    expect(nineteen.remainingLessons, 1);
+    final coach = MonthlyLessonGoal(
+        lessons: List.generate(
+            22, (_) => lesson('other', 'me', '2026-11-18T12:00:00Z')),
+        uid: 'me',
+        role: 'coach',
+        now: now);
+    expect(coach.count, 22);
+    expect(coach.eligible, false);
+    expect(coach.achieved, false);
+    expect(coach.percent, 0);
     expect(
         MonthlyLessonGoal(
                 lessons: lessons,

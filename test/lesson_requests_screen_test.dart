@@ -85,6 +85,21 @@ void main() {
     });
   });
 
+  testWidgets('coupon apply is student-only even when a coach takes a lesson',
+      (tester) async {
+    await addLesson(studentUid: 'coach', instructorUid: 'teacher');
+    await firestore
+        .doc('lesson_requests/lesson')
+        .update({'status': 'accepted', 'price': 50000, 'currency': 'KRW'});
+    await showLessons(tester, 'coach');
+    expect(find.text('결제하기'), findsOneWidget);
+    expect(find.text('할인권 적용'), findsNothing);
+    await firestore.doc('users/coach').update({'role': 'student'});
+    await tester.pumpAndSettle();
+    expect(find.text('할인권 적용'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('student can cancel a pending lesson but cannot coach it',
       (tester) async {
     await addLesson();

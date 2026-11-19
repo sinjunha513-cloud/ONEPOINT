@@ -1,14 +1,14 @@
 {
   "project": "onlyonepoint-lesson",
-  "verifiedAt": "2026-11-19T09:02:02.279Z",
+  "verifiedAt": "2026-11-19T09:16:52.643Z",
   "primaryUrl": "https://onlyonepoint-lesson.web.app",
   "sites": [
     {
       "site": "onlyonepoint-lesson",
       "url": "https://onlyonepoint-lesson.web.app",
-      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795078898727000",
-      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/7aff3c81a1a1525e",
-      "releaseTime": "2026-11-19T09:01:38.727Z",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795079785204000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/3056a0f1f4731d05",
+      "releaseTime": "2026-11-19T09:16:25.204Z",
       "checks": [
         {
           "file": "index.html",
@@ -19,7 +19,7 @@
         {
           "file": "main.dart.js",
           "status": 200,
-          "sha256": "92863d6998cdfd19378a22c0423befbffe171f160accfd503bb98c67be2bfc1d",
+          "sha256": "d40761dda4d19961be7414456b51b2fdcc94da8c58cb429e5645ec7866d4224f",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         },
         {
@@ -33,9 +33,9 @@
     {
       "site": "onlyonepoint-lesson-v2",
       "url": "https://onlyonepoint-lesson-v2.web.app",
-      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795078898819000",
-      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/348849a1a9d63631",
-      "releaseTime": "2026-11-19T09:01:38.819Z",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795079785331000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/c8911cc0f9e8a635",
+      "releaseTime": "2026-11-19T09:16:25.331Z",
       "checks": [
         {
           "file": "index.html",
@@ -46,7 +46,7 @@
         {
           "file": "main.dart.js",
           "status": 200,
-          "sha256": "92863d6998cdfd19378a22c0423befbffe171f160accfd503bb98c67be2bfc1d",
+          "sha256": "d40761dda4d19961be7414456b51b2fdcc94da8c58cb429e5645ec7866d4224f",
           "cacheControl": "no-cache, max-age=0, must-revalidate"
         },
         {
@@ -90,35 +90,5 @@
       "enterValidation": true,
       "pageErrors": []
     }
-  ],
-  "inAppBrowserChecks": {
-    "origin": "https://onlyonepoint-lesson.web.app/",
-    "results": [
-      {
-        "scenario": "normal",
-        "rendered": true,
-        "retryAvailable": false,
-        "errors": []
-      },
-      {
-        "scenario": "restricted-inapp",
-        "rendered": true,
-        "retryAvailable": false,
-        "errors": []
-      },
-      {
-        "scenario": "hanging-cache",
-        "rendered": true,
-        "retryAvailable": false,
-        "errors": []
-      },
-      {
-        "scenario": "blocked-bootstrap",
-        "rendered": false,
-        "retryAvailable": true,
-        "errors": []
-      }
-    ],
-    "verification": "Chrome mobile emulation, including KAKAOTALK user agent with denied cache/service-worker access and unavailable WebGL. Not a physical-device test."
-  }
+  ]
 }

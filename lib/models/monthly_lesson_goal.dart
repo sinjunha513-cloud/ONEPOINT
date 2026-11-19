@@ -7,6 +7,7 @@ class MonthlyLessonGoal {
       required String role,
       DateTime? now}) {
     final utc = (now ?? DateTime.now()).toUtc();
+    eligible = role == 'student';
     final korea = utc.add(const Duration(hours: 9));
     monthKey = '${korea.year}${korea.month.toString().padLeft(2, '0')}';
     monthLabel = '${korea.month}월';
@@ -29,12 +30,13 @@ class MonthlyLessonGoal {
           }).length
         : 0;
   }
-  static const target = 10;
+  static const target = 20;
+  late final bool eligible;
   late final String monthKey;
   late final String monthLabel;
   late final int count;
-  int get percent => (count * 10).clamp(0, 100);
+  int get percent => eligible ? (count * 100 ~/ target).clamp(0, 100) : 0;
   int get remainingPercent => 100 - percent;
-  int get remainingLessons => (target - count).clamp(0, target);
-  bool get achieved => count >= target;
+  int get remainingLessons => eligible ? (target - count).clamp(0, target) : 0;
+  bool get achieved => eligible && count >= target;
 }

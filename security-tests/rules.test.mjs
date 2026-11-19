@@ -214,32 +214,38 @@ const couponMonth = () => {
   const date=new Date(Date.now()+9*3600000);
   return `${date.getUTCFullYear()}${String(date.getUTCMonth()+1).padStart(2,'0')}`;
 };
-const availableCoupon = (extra={}) => ({kind:'monthly_goal',rate:10,earnedMonth:couponMonth(),status:'available',
+const availableCoupon = (extra={}) => ({kind:'monthly_goal',earnedRole:'student',rate:10,earnedMonth:couponMonth(),status:'available',
   issuedAt:new Date(),expiresAt:new Date(Date.now()+30*86400000),reservedLessonId:null,reservedAt:null,usedAt:null,...extra});
 async function completedLessons(uid,role,count) {
   for(let i=0;i<count;i++) await seed(`lesson_requests/reward_${uid}_${i}`,{...lesson,
     studentUid:role==='student'?uid:'other',instructorUid:role==='coach'?uid:'reward_teacher',
     participantIds:[uid,'other'],status:'completed',completedAt:new Date(Date.now()-1000)});
 }
-test('monthly reward: real completions, role-only counting, one claim per month and no caller counts', async () => {
+test('monthly reward: only students with 20 real completions, one claim per month and no caller counts', async () => {
   await completedLessons('student','student',9);
   await seed('lesson_requests/old_reward',{...lesson,status:'completed',completedAt:new Date('2020-01-01')});
   await seed('lesson_requests/missing_time',{...lesson,status:'completed'});
   await assert.rejects(call('claimMonthlyCoupon','student',{}),{code:'failed-precondition'});
   await assert.rejects(call('claimMonthlyCoupon','student',{count:10}),{code:'invalid-argument'});
   await seed('lesson_requests/reward_student_9',{...lesson,status:'completed',completedAt:new Date(Date.now()-1000)});
+  await assert.rejects(call('claimMonthlyCoupon','student',{}),{code:'failed-precondition'});
+  await completedLessons('student','student',19);
+  await assert.rejects(call('claimMonthlyCoupon','student',{}),{code:'failed-precondition'});
+  await seed('lesson_requests/reward_student_19',{...lesson,status:'completed',completedAt:new Date(Date.now()-1000)});
   const results=await Promise.all(Array.from({length:4},()=>call('claimMonthlyCoupon','student',{})));
   assert.equal(results.filter(r=>!r.alreadyClaimed).length,1);
   const coupons=await getDocs(collection(db('student'),'users/student/coupons'));
   assert.equal(coupons.size,1);
   const coupon=coupons.docs[0].data();
   assert.equal(coupon.expiresAt.toMillis()-coupon.issuedAt.toMillis(),30*86400000);
+  assert.equal(coupon.goalTarget,20);
+  assert.equal(coupon.earnedRole,'student');
   await seed('users/student',profile('student',{role:'coach'}));
-  assert.equal((await call('claimMonthlyCoupon','student',{})).alreadyClaimed,true);
-  await completedLessons('coach','student',10);
-  await assert.rejects(call('claimMonthlyCoupon','coach',{}),{code:'failed-precondition'});
-  await completedLessons('coach','coach',10);
-  assert.equal((await call('claimMonthlyCoupon','coach',{})).alreadyClaimed,false);
+  await assert.rejects(call('claimMonthlyCoupon','student',{}),{code:'permission-denied'});
+  await completedLessons('coach','student',20);
+  await assert.rejects(call('claimMonthlyCoupon','coach',{}),{code:'permission-denied'});
+  await completedLessons('coach','coach',20);
+  await assert.rejects(call('claimMonthlyCoupon','coach',{}),{code:'permission-denied'});
   for(const uid of [null,'suspended','incomplete']) await assert.rejects(call('claimMonthlyCoupon',uid,{}));
 });
 test('coupon privacy and immutable client state includes admin and participants', async () => {
@@ -256,6 +262,11 @@ test('coupon applies once, keeps coach payout, supports removal, and locks at pa
   await seed('users/student/coupons/monthly_test',availableCoupon());
   await seed('lesson_requests/paid_lesson',{...lesson,price:50000,currency:'KRW'});
   await seed('lesson_requests/second_paid',{...lesson,price:30000,currency:'KRW'});
+  await seed('users/student/coupons/old_coach',availableCoupon({earnedRole:'coach'}));
+  await assert.rejects(call('applyLessonCoupon','student',{lessonId:'paid_lesson',couponId:'old_coach'}),{code:'failed-precondition'});
+  await seed('users/coach/coupons/old_coach',availableCoupon({earnedRole:'coach'}));
+  await seed('lesson_requests/coach_learning',{...lesson,studentUid:'coach',instructorUid:'teacher',participantIds:['coach','teacher'],price:50000,currency:'KRW'});
+  await assert.rejects(call('applyLessonCoupon','coach',{lessonId:'coach_learning',couponId:'old_coach'}),{code:'permission-denied'});
   await assert.rejects(call('applyLessonCoupon','other',{lessonId:'paid_lesson',couponId:'monthly_test'}),{code:'permission-denied'});
   await assert.rejects(call('applyLessonCoupon','student',{lessonId:'paid_lesson',couponId:'monthly_test',price:1}),{code:'invalid-argument'});
   await call('applyLessonCoupon','student',{lessonId:'paid_lesson',couponId:'monthly_test'});
@@ -263,7 +274,9 @@ test('coupon applies once, keeps coach payout, supports removal, and locks at pa
   assert.equal(discounted.price,45000);assert.equal(discounted.coachAmount,44000);assert.equal(discounted.platformFee,1000);
   assert.equal((await call('applyLessonCoupon','student',{lessonId:'paid_lesson',couponId:'monthly_test'})).price,45000);
   await assert.rejects(call('applyLessonCoupon','student',{lessonId:'second_paid',couponId:'monthly_test'}),{code:'failed-precondition'});
+  await seed('users/student',profile('student',{role:'coach'}));
   await call('removeLessonCoupon','student',{lessonId:'paid_lesson'});
+  await seed('users/student',profile('student'));
   assert.equal((await getDoc(doc(db('student'),'lesson_requests/paid_lesson'))).data().price,50000);
   assert.equal((await getDoc(doc(db('student'),'users/student/coupons/monthly_test'))).data().status,'available');
   await call('applyLessonCoupon','student',{lessonId:'second_paid',couponId:'monthly_test'});

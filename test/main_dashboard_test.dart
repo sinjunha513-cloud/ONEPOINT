@@ -91,8 +91,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('20%'), findsOneWidget);
-    expect(find.text('100%까지 80%, 8회 남았어요.'), findsOneWidget);
+    expect(find.text('10%'), findsOneWidget);
+    expect(find.text('100%까지 90%, 18회 남았어요.'), findsOneWidget);
     expect(find.text('1개 획득'), findsOneWidget);
     expect(find.text('미승인 코치'), findsNothing);
     expect(find.textContaining('요가 코치'), findsWidgets);
@@ -103,7 +103,7 @@ void main() {
         .doc('accepted')
         .update({'status': 'completed', 'completedAt': Timestamp.now()});
     await tester.pumpAndSettle();
-    expect(find.text('30%'), findsOneWidget);
+    expect(find.text('15%'), findsOneWidget);
     // A completed legacy lesson does not mint an attendance badge.
     expect(find.text('1개 획득'), findsOneWidget);
 

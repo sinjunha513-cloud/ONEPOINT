@@ -3,7 +3,7 @@ import {HttpsError} from "firebase-functions/v2/https";
 import {calculateFees} from "./domain";
 import {FeePolicy, PaymentDocument} from "./models";
 
-export const monthlyLessonTarget = 10;
+export const monthlyLessonTarget = 20;
 export const couponLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 export function koreaMonth(now: number) {
   const date = new Date(now + 9 * 60 * 60 * 1000);
@@ -14,9 +14,8 @@ export function koreaMonth(now: number) {
 }
 export function monthlyCompletions(lessons: FirebaseFirestore.DocumentData[], uid: string, role: string, now: number) {
   const month = koreaMonth(now);
-  const field = role === "coach" ? "instructorUid" : "studentUid";
-  if (!["coach", "student"].includes(role)) return 0;
-  return lessons.filter(lesson => lesson[field] === uid && lesson.status === "completed" &&
+  if (role !== "student") return 0;
+  return lessons.filter(lesson => lesson.studentUid === uid && lesson.status === "completed" &&
     lesson.completedAt instanceof Timestamp && lesson.completedAt.toMillis() >= month.start &&
     lesson.completedAt.toMillis() < month.end && lesson.completedAt.toMillis() <= now).length;
 }

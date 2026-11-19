@@ -73,6 +73,27 @@ class _MonthlyLessonGoalCardState extends State<MonthlyLessonGoalCard>
     final goal = MonthlyLessonGoal(
         lessons: widget.lessons, uid: widget.uid, role: widget.role);
     final loaded = widget.loaded && !widget.hasError;
+    if (!goal.eligible) {
+      return Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${goal.monthLabel} 나의 레슨 현황',
+                        style: OnepointDesign.heading),
+                    const SizedBox(height: 8),
+                    Text(
+                        widget.hasError
+                            ? '레슨 현황을 불러오지 못했습니다.'
+                            : loaded
+                                ? '이번 달 ${widget.role == 'coach' ? '진행' : ''} 완료 ${goal.count}회'
+                                : '레슨 현황을 확인하고 있어요.',
+                        style: const TextStyle(
+                            color: OnepointDesign.muted, fontSize: 12)),
+                  ])));
+    }
     return Card(
         margin: EdgeInsets.zero,
         child: Padding(
@@ -98,7 +119,7 @@ class _MonthlyLessonGoalCardState extends State<MonthlyLessonGoalCard>
                                     widget.hasError
                                         ? '레슨 현황을 불러오지 못했습니다.'
                                         : loaded
-                                            ? '${widget.role == 'coach' ? '진행' : '수강'} 완료 ${goal.count}회 · 월 목표 10회'
+                                            ? '수강 완료 ${goal.count}회 · 월 목표 ${MonthlyLessonGoal.target}회'
                                             : '레슨 현황을 확인하고 있어요.',
                                     style: const TextStyle(
                                         color: OnepointDesign.muted,

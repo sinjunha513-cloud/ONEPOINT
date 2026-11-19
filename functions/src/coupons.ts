@@ -16,11 +16,14 @@ function input(request: CallableRequest, keys: string[]) {
   }
   return request.data as Record<string, unknown>;
 }
-async function member(tx: Transaction, uid: string) {
+async function member(tx: Transaction, uid: string, studentOnly = true) {
   const account = (await tx.get(getFirestore().collection("users").doc(uid))).data();
   if (!account || account.profileCompleted !== true || (account.accountStatus ?? "active") !== "active" ||
       !["student", "coach"].includes(account.role)) {
     throw new HttpsError("permission-denied", "활성 수강생 또는 코치 계정이 필요합니다.");
+  }
+  if (studentOnly && account.role !== "student") {
+    throw new HttpsError("permission-denied", "할인권은 수강생 계정만 받을 수 있고 사용할 수 있습니다.");
   }
   return account;
 }
@@ -36,11 +39,11 @@ export const claimMonthlyCoupon = onCall(options, async request => {
     // Query by the actor's indexed UID only, keeping eligibility independent of
     // client counters and avoiding a newly-required composite index at rollout.
     const lessons = await tx.get(getFirestore().collection("lesson_requests")
-      .where(account.role === "coach" ? "instructorUid" : "studentUid", "==", uid));
+      .where("studentUid", "==", uid));
     const count = monthlyCompletions(lessons.docs.map(doc => doc.data()), uid, account.role, now);
-    if (count < monthlyLessonTarget) throw new HttpsError("failed-precondition", "이번 달 완료한 레슨이 10회가 되면 받을 수 있습니다.");
+    if (count < monthlyLessonTarget) throw new HttpsError("failed-precondition", `이번 달 수강 완료한 레슨이 ${monthlyLessonTarget}회가 되면 받을 수 있습니다.`);
     tx.create(ref, {kind: "monthly_goal", rate: 10, earnedMonth: month.key, earnedRole: account.role,
-      status: "available", issuedAt: Timestamp.fromMillis(now), expiresAt: Timestamp.fromMillis(now + couponLifetimeMs),
+      goalTarget: monthlyLessonTarget, status: "available", issuedAt: Timestamp.fromMillis(now), expiresAt: Timestamp.fromMillis(now + couponLifetimeMs),
       reservedLessonId: null, reservedAt: null, usedAt: null});
     return {couponId, alreadyClaimed: false};
   });
@@ -56,6 +59,7 @@ export const applyLessonCoupon = onCall(options, async request => {
     const lesson = (await tx.get(lessonRef)).data(); const coupon = (await tx.get(couponRef)).data();
     if (!lesson) throw new HttpsError("not-found", "레슨을 찾을 수 없습니다.");
     const price = validateLesson(lesson as LessonDocument, uid);
+    if (coupon?.earnedRole !== "student") throw new HttpsError("failed-precondition", "수강생으로 받은 할인권만 사용할 수 있습니다.");
     if (lesson.paymentId || lesson.paymentStatus) throw new HttpsError("failed-precondition", "결제 준비 전의 레슨에만 할인권을 적용할 수 있습니다.");
     if (lesson.couponId === couponId && coupon?.status === "reserved" && coupon.reservedLessonId === lessonId) {
       return {lessonId, couponId, price};
@@ -75,7 +79,9 @@ export const removeLessonCoupon = onCall(options, async request => {
   const data = input(request, ["lessonId"]); const uid = request.auth!.uid;
   const lessonId = documentId(data.lessonId, "lessonId");
   return getFirestore().runTransaction(async tx => {
-    await member(tx, uid);
+    // Removing an old reservation restores the undiscounted price and grants
+    // no new eligibility, including after the owner changes account roles.
+    await member(tx, uid, false);
     const lessonRef = getFirestore().collection("lesson_requests").doc(lessonId);
     const lesson = (await tx.get(lessonRef)).data();
     if (!lesson || lesson.studentUid !== uid) throw new HttpsError("permission-denied", "본인 레슨만 변경할 수 있습니다.");

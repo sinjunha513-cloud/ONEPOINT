@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 import {Timestamp} from "firebase-admin/firestore";
-import {discountedQuote, koreaMonth, monthlyCompletions, remainingFees} from "../src/reward_domain";
+import {discountedQuote, koreaMonth, monthlyCompletions, monthlyLessonTarget, remainingFees} from "../src/reward_domain";
 import {PaymentDocument} from "../src/models";
 
 test("Korean month and role-specific completions exclude missing/future/pending records", () => {
@@ -13,7 +13,8 @@ test("Korean month and role-specific completions exclude missing/future/pending 
     lesson("me", "other", "2026-11-18T00:00:00Z", "accepted"), lesson("me", "other", "2026-11-30T15:00:00Z"),
     {studentUid: "me", status: "completed"}];
   assert.equal(monthlyCompletions(lessons, "me", "student", now), 2);
-  assert.equal(monthlyCompletions(lessons, "me", "coach", now), 1);
+  assert.equal(monthlyCompletions(lessons, "me", "coach", now), 0);
+  assert.equal(monthlyLessonTarget, 20);
   assert.equal(koreaMonth(Date.parse("2026-11-30T15:00:00Z")).key, "202612");
 });
 test("platform-funded ten percent keeps the original coach payout, including integer rounding", () => {

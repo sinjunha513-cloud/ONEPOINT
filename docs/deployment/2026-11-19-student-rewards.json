@@ -1,0 +1,69 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-19T09:15:42.359Z",
+  "functions": [
+    {
+      "name": "claimMonthlyCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T09:14:44.949104824Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "removeLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T09:14:52.597355674Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "applyLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-19T09:14:52.564843238Z",
+      "region": "asia-northeast3"
+    }
+  ],
+  "authenticationProbes": [
+    {
+      "name": "claimMonthlyCoupon",
+      "status": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "removeLessonCoupon",
+      "status": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "applyLessonCoupon",
+      "status": 401,
+      "error": "UNAUTHENTICATED"
+    }
+  ],
+  "sources": {
+    "functions/src/coupons.ts": "a1b18eb739d567418b5614026f098eb981d3e83820e83724af7c60ae9c12f387",
+    "functions/src/reward_domain.ts": "89274c54dbdfb496addb0f9e390eac9bb135be12a57bc97c61f33f41893c523d",
+    "functions/src/payment_service.ts": "a726186795fac8320371df890089df3070ee121b92d7e69d23cd64ee4d8acb3e"
+  },
+  "validation": {
+    "flutterTests": 180,
+    "functionTests": 30,
+    "emulatorTests": 44,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed"
+  },
+  "rewardPolicy": {
+    "timezone": "Asia/Seoul",
+    "eligibleRole": "student",
+    "target": 20,
+    "percentPerLesson": 5,
+    "frequency": "one coupon per calendar month",
+    "completedRole": "completed lessons taken as student only",
+    "validityDaysFromClaim": 30,
+    "discountPercent": 10,
+    "funding": "platform fee; original coach payout preserved",
+    "coachCoupons": "no new claims or applications; previously coach-earned coupons cannot be applied after switching to student",
+    "existingStudentCoupons": "existing issued student coupons retain original validity; no additional monthly claim"
+  },
+  "coachUi": "Monthly completed teaching count only; no coupon goal, claim button, wallet entry or apply action. Existing reservations can still be removed.",
+  "paymentScope": "Live payment gateway remains disabled; coupon eligibility in optional payment preparation is covered by unit and Firestore emulator tests.",
+  "verification": "Management API and unauthenticated rejection probes; no synthetic production lessons or coupons."
+}

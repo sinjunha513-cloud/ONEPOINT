@@ -55,12 +55,18 @@ test("reserved discount preserves the original coach payout and cannot be forged
   const {store, service} = fixture();
   Object.assign(store.lessons.get("lesson")!, {price: 45000, originalPrice: 50000, discountAmount: 5000,
     couponId: "monthly_202611", platformFeeBps: 1200, platformFee: 1000, coachAmount: 44000});
-  store.coupons.set("student/monthly_202611", {kind: "monthly_goal", rate: 10, status: "reserved",
+  store.coupons.set("student/monthly_202611", {kind: "monthly_goal", earnedRole: "student", rate: 10, status: "reserved",
     reservedLessonId: "lesson", reservedAt: Timestamp.fromMillis(100), expiresAt: Timestamp.fromMillis(10000)});
   const payment = await service.prepare("student", "lesson", {platformFeeBps: 2000});
   assert.equal(payment.amount, 45000); assert.equal(payment.coachAmount, 44000); assert.equal(payment.platformFee, 1000);
   assert.equal(payment.originalPrice, 50000); assert.equal(payment.discountAmount, 5000);
   assert.equal((await service.prepare("student", "lesson", policy)).paymentId, payment.paymentId);
+  store.accounts.get("student")!.role = "coach";
+  await assert.rejects(service.prepare("student", "lesson", policy), rejected("failed-precondition"));
+  store.accounts.get("student")!.role = "student";
+  store.coupons.get("student/monthly_202611")!.earnedRole = "coach";
+  await assert.rejects(service.prepare("student", "lesson", policy), rejected("failed-precondition"));
+  store.coupons.get("student/monthly_202611")!.earnedRole = "student";
   store.coupons.get("student/monthly_202611")!.reservedLessonId = "another";
   await assert.rejects(service.prepare("student", "lesson", policy), rejected("failed-precondition"));
   store.coupons.get("student/monthly_202611")!.reservedLessonId = "lesson";

@@ -45,6 +45,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
   String _direction = '전체';
   late final _payments = widget.paymentService ?? PaymentService();
   late final _coupons = widget.couponService ?? CouponService();
+  late final _couponEligibility = _service.couponEligibility();
   CoachAvailabilityService? _availabilityInstance;
   CoachAvailabilityService get _availability => _availabilityInstance ??=
       widget.availabilityService ?? CoachAvailabilityService();
@@ -569,26 +570,37 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                     isStudent &&
                     data['price'] is num &&
                     data['paymentId'] == null)
-                  OutlinedButton.icon(
-                      icon: const Icon(Icons.local_offer_outlined, size: 18),
-                      onPressed: busy
-                          ? null
-                          : () async {
-                              if (data['couponId'] is String) {
-                                await _runAction(
-                                    lesson.id, () => _coupons.remove(lesson.id),
-                                    successMessage: '할인권 적용을 해제했습니다.');
-                              } else {
-                                await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => CouponWalletScreen(
-                                            service: _coupons,
-                                            lessonId: lesson.id)));
-                              }
-                            },
-                      label: Text(
-                          data['couponId'] is String ? '할인권 해제' : '할인권 적용')),
+                  StreamBuilder<bool>(
+                      stream: _couponEligibility,
+                      builder: (context, eligibility) {
+                        if (eligibility.data != true &&
+                            data['couponId'] is! String) {
+                          return const SizedBox.shrink();
+                        }
+                        return OutlinedButton.icon(
+                            icon: const Icon(Icons.local_offer_outlined,
+                                size: 18),
+                            onPressed: busy
+                                ? null
+                                : () async {
+                                    if (data['couponId'] is String) {
+                                      await _runAction(lesson.id,
+                                          () => _coupons.remove(lesson.id),
+                                          successMessage: '할인권 적용을 해제했습니다.');
+                                    } else {
+                                      await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  CouponWalletScreen(
+                                                      service: _coupons,
+                                                      lessonId: lesson.id)));
+                                    }
+                                  },
+                            label: Text(data['couponId'] is String
+                                ? '할인권 해제'
+                                : '할인권 적용'));
+                      }),
                 if (status == 'accepted' && isStudent && data['price'] is num)
                   FilledButton(
                       onPressed: busy

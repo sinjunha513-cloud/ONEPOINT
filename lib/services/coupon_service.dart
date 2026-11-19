@@ -13,11 +13,27 @@ class CouponService {
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
   final FirebaseFunctions? _functions;
+  Stream<bool> eligible() {
+    final uid = _auth.currentUser?.uid;
+    return uid == null
+        ? Stream.value(false)
+        : _db
+            .collection('users')
+            .doc(uid)
+            .snapshots()
+            .map((doc) => doc.data()?['role'] == 'student');
+  }
+
   Stream<QuerySnapshot<Map<String, dynamic>>> coupons() {
     final uid = _auth.currentUser?.uid;
     return uid == null
         ? const Stream.empty()
-        : _db.collection('users').doc(uid).collection('coupons').snapshots();
+        : _db
+            .collection('users')
+            .doc(uid)
+            .collection('coupons')
+            .where('earnedRole', isEqualTo: 'student')
+            .snapshots();
   }
 
   Future<void> _call(String name, Map<String, dynamic> data) async {

@@ -22,6 +22,12 @@ class MatchingService {
     return uid;
   }
 
+  Stream<bool> couponEligibility() => _db
+      .collection('users')
+      .doc(currentUid)
+      .snapshots()
+      .map((doc) => doc.data()?['role'] == 'student');
+
   Stream<QuerySnapshot<Map<String, dynamic>>> lessons() => _db
       .collection('lesson_requests')
       .where('participantIds', arrayContains: currentUid)

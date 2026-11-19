@@ -29,7 +29,7 @@ export class PaymentService {
         throw new HttpsError("failed-precondition", "Lesson has a different payment reference.");
       }
       const quote = lesson.couponId ? discountedQuote(lesson.originalPrice!, {platformFeeBps: lesson.platformFeeBps!}) : null;
-      if (quote && (!coupon || coupon.kind !== "monthly_goal" || coupon.rate !== 10 ||
+      if (quote && (student.role !== "student" || !coupon || coupon.earnedRole !== "student" || coupon.kind !== "monthly_goal" || coupon.rate !== 10 ||
           coupon.status !== "reserved" || coupon.reservedLessonId !== lessonId ||
           !(coupon.reservedAt instanceof Timestamp) || !(coupon.expiresAt instanceof Timestamp) ||
           coupon.reservedAt.toMillis() >= coupon.expiresAt.toMillis() ||

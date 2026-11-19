@@ -11,11 +11,56 @@ import 'support/fake_functions.dart';
 
 void main() {
   testWidgets(
+      'coach sees monthly activity without a reward and cannot open the coupon wallet',
+      (tester) async {
+    final db = FakeFirebaseFirestore();
+    final auth =
+        MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'coach'));
+    await db.doc('users/coach').set({'role': 'coach'});
+    await db.doc('users/coach/coupons/old').set({
+      'earnedRole': 'coach',
+      'status': 'available',
+      'expiresAt':
+          Timestamp.fromDate(DateTime.now().add(const Duration(days: 30)))
+    });
+    final service = CouponService(firestore: db, auth: auth);
+    await tester.pumpWidget(MaterialApp(
+        theme: buildOnepointTheme(),
+        home: Scaffold(
+            body: MonthlyLessonGoalCard(
+                lessons: List.generate(
+                    20,
+                    (_) => {
+                          'instructorUid': 'coach',
+                          'status': 'completed',
+                          'completedAt': Timestamp.now()
+                        }),
+                uid: 'coach',
+                role: 'coach',
+                loaded: true,
+                hasError: false,
+                service: service))));
+    await tester.pumpAndSettle();
+    expect(find.text('이번 달 진행 완료 20회'), findsOneWidget);
+    expect(find.text('10% 할인권 받기'), findsNothing);
+    expect(find.text('내 할인권'), findsNothing);
+    expect(find.text('100%'), findsNothing);
+    await tester.pumpWidget(MaterialApp(
+        theme: buildOnepointTheme(),
+        home: CouponWalletScreen(service: service, lessonId: 'lesson')));
+    await tester.pumpAndSettle();
+    expect(find.text('할인권은 수강생 전용입니다.'), findsOneWidget);
+    expect(find.text('이 레슨에 적용'), findsNothing);
+    expect(find.text('10% OFF'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
       'monthly goal claims once and the wallet exposes the received coupon',
       (tester) async {
     final db = FakeFirebaseFirestore();
     final auth =
         MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'me'));
+    await db.doc('users/me').set({'role': 'student'});
     var calls = 0;
     final now = DateTime.now().toUtc().add(const Duration(hours: 9));
     final month = '${now.year}${now.month.toString().padLeft(2, '0')}';
@@ -27,6 +72,7 @@ void main() {
           expect(data, isEmpty);
           calls++;
           await db.doc('users/me/coupons/monthly_$month').set({
+            'earnedRole': 'student',
             'status': 'available',
             'earnedMonth': month,
             'expiresAt':
@@ -47,7 +93,7 @@ void main() {
                     hasError: false,
                     service: service,
                     lessons: List.generate(
-                        10,
+                        20,
                         (_) => {
                               'studentUid': 'me',
                               'status': 'completed',
@@ -72,6 +118,7 @@ void main() {
     final db = FakeFirebaseFirestore();
     final auth =
         MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'me'));
+    await db.doc('users/me').set({'role': 'student'});
     for (final e in {
       'available': 'available',
       'expired': 'available',
@@ -79,6 +126,7 @@ void main() {
       'reserved': 'reserved'
     }.entries) {
       await db.doc('users/me/coupons/${e.key}').set({
+        'earnedRole': 'student',
         'status': e.value,
         'earnedMonth': '202611',
         'expiresAt': Timestamp.fromDate(
