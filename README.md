@@ -7,7 +7,7 @@
 >
 > 현재 UI와 주요 기능을 지속적으로 개발·개선하고 있으며, 변경 사항을 수시로 반영하고 있습니다.
 >
-> **최근 업데이트 (2026-11-24 · v1.1.0):** `onepoint` 시작·로그인 로고와 애니메이션을 정리하고, 알림 설정·비밀번호 재설정·본인 확인 후 회원탈퇴·신고/차단·운영진 신고 처리를 추가했습니다. 영상은 필요한 항목만 스트리밍하며, 추천 기준과 완료 레슨에 따른 활동 점수를 안내합니다. 월간 목표는 수강생 20회이며, 달성 시 30일 유효한 10% 할인권을 받을 수 있습니다.
+> **최근 업데이트 (2026-11-24 · v1.1.1):** 테스트 레슨은 결제 없이 완료·평가할 수 있습니다. 예정 종료 시각 이후 코치의 평가 요청과 수강생의 참여 확인을 거쳐 완료됩니다. 종료 전이나 일정 미등록 상태에는 진행할 수 없는 이유를 표시합니다. 기존 로고·알림·계정·신고/차단 개선과 수강생 월 20회 목표·10% 할인권 규칙도 유지합니다.
 >
 > [모바일·PC 웹에서 최신 버전 확인하기](https://onlyonepoint-lesson.web.app)
 
@@ -65,6 +65,14 @@ Browse sports video content in the feed.
 ## Key features
 
 ### Account, community and media release (2026-11-24)
+
+The deployed testing platform enables the operator-owned `lessonTestModeEnabled`
+feature. An accepted lesson without a linked payment can use **결제 없이 완료·평가**
+after a valid scheduled end time. The coach submits the evaluation, then the
+student confirms participation; rewards remain exactly-once. Quoted amounts do
+not require a checkout in this mode. Existing payment records are rejected by
+the test path, and it never marks a payment paid or creates a settlement. Disable
+this feature before enabling a commercial payment workflow.
 
 - **Brand:** native `onepoint` wordmark in the existing Inter font, black/white/blue Figma palette, startup fade/slide, and reduced-motion support. Existing launcher icons are retained.
 - **Notifications:** private activity inbox plus opt-in browser Web Push and native FCM registration; account-owned devices, logout cleanup, preview privacy and invalid-token removal. Historical inbox sync does not resend old activity as push notifications. iOS/iPadOS web notifications require a web app added to the Home Screen. Real-device delivery still requires device permission and acceptance testing; native iOS also requires APNs configuration.

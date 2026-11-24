@@ -152,3 +152,28 @@ On iOS/iPadOS, use a Home Screen web app; native iOS distribution additionally
 needs APNs credentials and signed-device testing. Live payments remain outside
 this release. Existing student reward rules remain 20 completions per Korean
 calendar month, one 10% coupon, 30 days from claim and platform-funded discount.
+
+## November 24: unpaid lesson testing
+
+The v1.1.1 testing release enables the operator feature
+`app_config/features.lessonTestModeEnabled`. Accepted lessons without an actual
+payment record can request evaluation without checkout, including old unpaid
+quotes. Valid start/end times and a past scheduled end remain required, as the
+user requested. The UI explains missing dates or a future end instead of hiding
+the action. Coach evaluation and student confirmation remain separate; only
+confirmation awards completion once.
+
+The server checks payment references/status and the actual payments collection
+before both review submission and confirmation. The request is marked
+`completionReview.testWithoutPayment`, without marking anything paid or creating
+a settlement. Only an operator can enable the feature; no client request can
+choose its own test bypass. Quoted values are retained. The payment gateway test
+flag and unrelated feature settings are preserved.
+
+Receipts: `2026-11-24-unpaid-test-lessons.json` and
+`2026-11-24-unpaid-hosting.json`. Verification covers 30 focused Flutter tests,
+a two-test narrow/mobile follow-up, 30 Functions unit tests, 63 security emulator
+tests and nine startup/push-worker tests. No production lesson was created or
+completed to verify the change. Future targeted deployments may pass
+`-OnlyFunctions @('completeLesson','respondLessonCompletion','resolveLessonDispute')`
+to `tool/deploy-platform.ps1`; unrelated functions remain untouched.

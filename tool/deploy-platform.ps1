@@ -1,4 +1,5 @@
-param([ValidateRange(0, 10000)][int]$PlatformFeeBps = 1200)
+param([ValidateRange(0, 10000)][int]$PlatformFeeBps = 1200,
+      [string[]]$OnlyFunctions = @())
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
@@ -37,6 +38,15 @@ try {
   [IO.File]::WriteAllText((Join-Path $stage 'firebase.json'), ($configuration | ConvertTo-Json -Depth 10), $encoding)
   $functionTargets = & node -e "process.stdout.write(Object.keys(require('./functions/lib/src/platform_index.js')).map(n=>'functions:'+n).join(','))"
   if ($LASTEXITCODE -ne 0 -or -not $functionTargets) { throw 'Could not determine platform functions.' }
+  if ($OnlyFunctions.Count -gt 0) {
+    $availableTargets = $functionTargets.Split(',')
+    $selectedTargets = foreach ($functionName in $OnlyFunctions) {
+      $target = "functions:$functionName"
+      if ($availableTargets -notcontains $target) { throw "Not an exported platform function: $functionName" }
+      $target
+    }
+    $functionTargets = $selectedTargets -join ','
+  }
   # Explicit targets retain unrelated functions. --force acknowledges retries
   # for idempotent push/report delivery and resumable account-cleanup handlers.
   & './security-tests/node_modules/.bin/firebase.cmd' deploy --config "$stage/firebase.json" --project onlyonepoint-lesson --only "firestore:rules,firestore:indexes,storage,$functionTargets" --non-interactive --force

@@ -515,9 +515,10 @@ service cloud.firestore {
       allow get: if signedIn();
       allow create, update: if admin()
         && request.resource.data.keys().hasOnly([
-          'videoUploadsEnabled', 'paymentTestEnabled'])
-        && request.resource.data.videoUploadsEnabled is bool
-        && request.resource.data.get('paymentTestEnabled', false) is bool;
+          'videoUploadsEnabled', 'paymentTestEnabled', 'lessonTestModeEnabled'])
+        && request.resource.data.get('videoUploadsEnabled', true) is bool
+        && request.resource.data.get('paymentTestEnabled', false) is bool
+        && request.resource.data.get('lessonTestModeEnabled', false) is bool;
     }
   }
 }

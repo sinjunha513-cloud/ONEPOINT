@@ -257,14 +257,27 @@ function ended(lesson: DocumentData) {
   if (!millis(lesson.scheduledStartAt) || millis(lesson.scheduledEndAt) <= millis(lesson.scheduledStartAt) || millis(lesson.scheduledEndAt) > Date.now()) throw new HttpsError("failed-precondition", "확정된 수업 종료 시간이 지난 후에 완료를 확인할 수 있습니다.");
   if (lesson.scheduleProposal?.status === "pending") throw new HttpsError("failed-precondition", "일정 변경 요청을 먼저 처리해 주세요.");
 }
+// Test completion never invents payment/settlement state. Only an operator
+// feature flag can permit an unpaid quote through the ordinary review flow.
+async function completionMode(tx: Transaction, id: string, lesson: DocumentData) {
+  const config=(await tx.get(db().doc('app_config/features'))).data();
+  if(config?.lessonTestModeEnabled!==true){ordinary(lesson);return false;}
+  if(lesson.paymentId || (lesson.paymentStatus!=null && !['pending','unpaid'].includes(lesson.paymentStatus))) {
+    throw new HttpsError('failed-precondition','결제 기록이 연결된 레슨은 기존 결제 절차를 이용해 주세요.');
+  }
+  const payments=await tx.get(db().collection('payments').where('lessonId','==',id).limit(1));
+  if(!payments.empty)throw new HttpsError('failed-precondition','결제 기록이 연결된 레슨은 기존 결제 절차를 이용해 주세요.');
+  return true;
+}
 export const completeLesson = onCall(options, async r => {
   const data = input(r, ["lessonId", "reviewScore", "feedback", "signatureMove"]), uid = r.auth!.uid, id = documentId(data.lessonId, "lessonId");
   if (typeof data.reviewScore !== "number" || !Number.isFinite(data.reviewScore) || data.reviewScore < 1 || data.reviewScore > 5 || typeof data.feedback !== "string" || data.feedback.length > 1000) throw new HttpsError("invalid-argument", "평가와 피드백을 확인해 주세요.");
   return db().runTransaction(async tx => {
     const ref = db().collection("lesson_requests").doc(id), lesson = (await tx.get(ref)).data();
     if (!lesson || lesson.instructorUid !== uid) throw new HttpsError("permission-denied", "담당 코치만 완료 확인을 요청할 수 있습니다.");
-    const profile = await coach(tx, uid); await member(tx, lesson.studentUid); ordinary(lesson);
+    const profile = await coach(tx, uid); await member(tx, lesson.studentUid);
     if (lesson.status === "completed") return {lessonId: id, status: "completed"};
+    const testWithoutPayment=await completionMode(tx,id,lesson);
     if (lesson.status !== "accepted") throw new HttpsError("failed-precondition", "수락한 레슨만 완료 확인을 요청할 수 있습니다.");
     ended(lesson);
     if (lesson.completionReview?.status === "disputed") throw new HttpsError("failed-precondition", "이의 제기 검토 또는 합의된 일정 변경 후 다시 요청해 주세요.");
@@ -278,8 +291,8 @@ export const completeLesson = onCall(options, async r => {
     const attendanceBadge = {instructorUid: uid, instructorName: lesson.instructorName ?? profile.name ?? "코치", sport: lesson.sport ?? profile.sport ?? "",
       signatureMove: signature, verifiedBy: uid, ...(badgeId ? {signatureBadgeId: badgeId} : {}),
       ...(typeof (badge?.colorIndex ?? profile.signatureBadgeColorIndex) === "number" ? {signatureBadgeColorIndex: badge?.colorIndex ?? profile.signatureBadgeColorIndex} : {})};
-    tx.update(ref, {completionRevision: revision, completionReview: {status: "pending", revision, requestedBy: uid, requestedAt: stamp(), reviewScore: data.reviewScore, feedback: data.feedback, attendanceBadge}, updatedAt: stamp()});
-    audit(tx, id, "completion_requested", uid, {revision});
+    tx.update(ref, {completionRevision: revision, completionReview: {status: "pending", revision, requestedBy: uid, requestedAt: stamp(), reviewScore: data.reviewScore, feedback: data.feedback, attendanceBadge, ...(testWithoutPayment?{testWithoutPayment:true}:{})}, updatedAt: stamp()});
+    audit(tx, id, "completion_requested", uid, {revision,...(testWithoutPayment?{testWithoutPayment:true}:{})});
     return {lessonId: id, status: "pending"};
   });
 });
@@ -299,8 +312,9 @@ export const respondLessonCompletion = onCall(options, async r => {
   return db().runTransaction(async tx => {
     const ref = db().collection("lesson_requests").doc(id), lesson = (await tx.get(ref)).data();
     if (!lesson || lesson.studentUid !== uid) throw new HttpsError("permission-denied", "담당 수강생만 참여를 확인할 수 있습니다.");
-    await member(tx, uid); ordinary(lesson);
+    await member(tx, uid);
     if (lesson.status === "completed" && data.decision === "confirm") return {lessonId: id, status: "completed"};
+    await completionMode(tx,id,lesson);
     if (lesson.status !== "accepted") throw new HttpsError("failed-precondition", "현재 참여 확인을 처리할 수 없습니다.");
     ended(lesson);
     sameRevision(data.revision, lesson.completionReview?.revision);
@@ -324,7 +338,7 @@ export const resolveLessonDispute = onCall(options, async r => {
     if ((await member(tx, uid)).role !== "admin") throw new HttpsError("permission-denied", "관리자만 이의 제기를 처리할 수 있습니다.");
     const ref = db().collection("lesson_requests").doc(id), lesson = (await tx.get(ref)).data();
     if (!lesson || lesson.status !== "accepted" || lesson.completionReview?.status !== "disputed") throw new HttpsError("failed-precondition", "검토 중인 이의 제기가 없습니다.");
-    ordinary(lesson); ended(lesson);
+    await completionMode(tx,id,lesson); ended(lesson);
     sameRevision(data.revision, lesson.completionReview.revision);
     if (data.decision === "confirm") await finalize(tx, id, lesson, uid, note);
     else {

@@ -2,7 +2,7 @@
 {{flutter_build_config}}
 
 (async function startOnepoint() {
-  const version = '20261124-platform-release-v1';
+  const version = '20261124-unpaid-lessons-v1';
   const legacyWorker = worker => /\/flutter_service_worker\.js(?:\?|$)/.test(worker?.scriptURL || '');
   async function cleanLegacyCache() {
     let controlled = false;

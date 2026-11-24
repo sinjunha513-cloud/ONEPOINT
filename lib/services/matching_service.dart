@@ -28,6 +28,11 @@ class MatchingService {
       .snapshots()
       .map((doc) => doc.data()?['role'] == 'student');
 
+  Stream<bool> lessonTestMode() => _db
+      .doc('app_config/features')
+      .snapshots()
+      .map((doc) => doc.data()?['lessonTestModeEnabled'] == true);
+
   Stream<QuerySnapshot<Map<String, dynamic>>> lessons() => _db
       .collection('lesson_requests')
       .where('participantIds', arrayContains: currentUid)

@@ -433,6 +433,50 @@ test('workflow: only ended lessons can request completion and only student confi
   assert.equal((await getDoc(doc(db('student'),'lesson_requests/ended'))).data().attendanceBadge.signatureMove,'kick');
   await assertFails(updateDoc(doc(db('coach'),'lesson_requests/ended'),{status:'accepted'}));
 });
+
+test('unpaid test mode: ended quote can be evaluated and confirmed once without payment or settlement',async()=>{
+  await seed('app_config/features',{lessonTestModeEnabled:true});
+  await pastLesson('test_quote');
+  await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'lesson_requests/test_quote'),{price:50000,paymentRequired:true}));
+  await assert.rejects(call('completeLesson','student',{lessonId:'test_quote',reviewScore:4,feedback:''}),{code:'permission-denied'});
+  await call('completeLesson','coach',{lessonId:'test_quote',reviewScore:4,feedback:'테스트 평가'});
+  let record=(await getDoc(doc(db('student'),'lesson_requests/test_quote'))).data();
+  assert.equal(record.status,'accepted');assert.equal(record.completionReview.testWithoutPayment,true);
+  assert.equal(record.paymentStatus,undefined);assert.equal(record.paymentId,undefined);
+  await assertFails(updateDoc(doc(db('coach'),'lesson_requests/test_quote'),{'completionReview.testWithoutPayment':false}));
+  await Promise.all(Array.from({length:3},()=>call('respondLessonCompletion','student',{lessonId:'test_quote',decision:'confirm'})));
+  record=(await getDoc(doc(db('student'),'lesson_requests/test_quote'))).data();
+  assert.equal(record.status,'completed');assert.equal(record.reviewScore,4);assert.equal(record.price,50000);
+  assert.equal(record.paymentStatus,undefined);assert.equal(record.paymentId,undefined);
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,1);
+  await env.withSecurityRulesDisabled(async c=>{
+    assert.equal((await getDocs(collection(c.firestore(),'payments'))).size,0);
+    assert.equal((await getDocs(collection(c.firestore(),'settlements'))).size,0);
+  });
+});
+
+test('unpaid test mode: server flag, end time, dates and real payment isolation remain required',async()=>{
+  await pastLesson('test_quote');
+  await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'lesson_requests/test_quote'),{price:50000}));
+  await assert.rejects(call('completeLesson','coach',{lessonId:'test_quote',reviewScore:4,feedback:''}),{code:'failed-precondition'});
+  await assertFails(setDoc(doc(db('student'),'app_config/features'),{lessonTestModeEnabled:true}));
+  await assertSucceeds(setDoc(doc(db('admin'),'app_config/features'),{lessonTestModeEnabled:true}));
+  await assertFails(updateDoc(doc(db('coach'),'app_config/features'),{lessonTestModeEnabled:false}));
+  await assert.rejects(call('completeLesson','coach',{lessonId:'test_quote',reviewScore:4,feedback:'',testWithoutPayment:true}),{code:'invalid-argument'});
+  for(const [id,fields] of Object.entries({
+    future:{scheduledStartAt:new Date(Date.now()+3600000),scheduledEndAt:new Date(Date.now()+7200000)},
+    missing:{},linked:{paymentId:'real_payment'},paid:{paymentStatus:'paid'},orphan:{}
+  })){
+    const schedule=['missing'].includes(id)?{}:{scheduledStartAt:new Date(Date.now()-7200000),scheduledEndAt:new Date(Date.now()-3600000)};
+    await seed('lesson_requests/'+id,{...lesson,price:50000,...schedule,...fields});
+    if(id==='orphan')await seed('payments/orphan_payment',{lessonId:id,paymentStatus:'pending'});
+    await assert.rejects(call('completeLesson','coach',{lessonId:id,reviewScore:4,feedback:''}),{code:'failed-precondition'});
+  }
+  await call('completeLesson','coach',{lessonId:'test_quote',reviewScore:4,feedback:''});
+  await seed('payments/racing_payment',{lessonId:'test_quote',paymentStatus:'pending'});
+  await assert.rejects(call('respondLessonCompletion','student',{lessonId:'test_quote',decision:'confirm'}),{code:'failed-precondition'});
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,0);
+});
 test('workflow: disputed attendance blocks awards and requires an audited admin decision',async()=>{
   await pastLesson('disputed');
   await call('completeLesson','coach',{lessonId:'disputed',reviewScore:4,feedback:''});

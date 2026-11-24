@@ -1,4 +1,5 @@
 import '../config/onepoint_design.dart';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -44,6 +45,8 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
   late Stream<QuerySnapshot<Map<String, dynamic>>> _lessons;
   final Set<String> _busyRequests = {};
   String _direction = '전체';
+  bool _testMode = false;
+  StreamSubscription<bool>? _testSubscription;
   late final _payments = widget.paymentService ?? PaymentService();
   late final _coupons = widget.couponService ?? CouponService();
   late final _couponEligibility = _service.couponEligibility();
@@ -127,6 +130,17 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
     super.initState();
     _service = widget.service ?? MatchingService();
     _lessons = _service.lessons();
+    _testSubscription = _service.lessonTestMode().listen((enabled) {
+      if (mounted && _testMode != enabled) setState(() => _testMode = enabled);
+    }, onError: (Object _) {
+      if (mounted && _testMode) setState(() => _testMode = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _testSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _runAction(
@@ -346,6 +360,22 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
     final attendanceBadge = data['attendanceBadge'];
     final scheduledStartAt = data['scheduledStartAt'];
     final scheduledEndAt = data['scheduledEndAt'];
+    final paymentLinked =
+        (data['paymentId'] != null && data['paymentId'] != '') ||
+            (data['paymentStatus'] != null &&
+                !['pending', 'unpaid'].contains(data['paymentStatus']));
+    final unpaidTest = _testMode && !paymentLinked && status == 'accepted';
+    final testCompleted =
+        (data['completionReview'] as Map?)?['testWithoutPayment'] == true;
+    final start = timestampDate(scheduledStartAt),
+        end = timestampDate(scheduledEndAt);
+    final validSchedule = start != null && end != null && end.isAfter(start);
+    final hasEnded = validSchedule && !end.isAfter(DateTime.now().toUtc());
+    final ordinaryCompletion = status == 'accepted' &&
+        (unpaidTest ||
+            (!data.containsKey('price') &&
+                data['paymentRequired'] != true &&
+                !paymentLinked));
     final scheduleRevision = (data['scheduleRevision'] as num?)?.toInt() ?? 0;
     final canReschedule = (isInstructor || isStudent) &&
         const ['pending', 'accepted', 'confirmed'].contains(status) &&
@@ -402,7 +432,9 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                 ),
                 const SizedBox(width: 8),
                 Chip(
-                    label: Text(status == 'accepted' && data['price'] is num
+                    label: Text(status == 'accepted' &&
+                            data['price'] is num &&
+                            !unpaidTest
                         ? '결제 대기'
                         : _statusLabel(status))),
               ],
@@ -413,6 +445,15 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             const SizedBox(height: 12),
+            if (unpaidTest || testCompleted)
+              const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                      '결제 없는 테스트 레슨 · 예정 종료 시각 이후 코치가 평가하고 수강생이 참여를 확인하면 완료됩니다.',
+                      style: TextStyle(
+                          color: OnepointDesign.lime,
+                          fontSize: 12,
+                          height: 1.5))),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
@@ -456,7 +497,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                 ],
               ),
             ),
-            if (data['price'] is num)
+            if (data['price'] is num && !unpaidTest && !testCompleted)
               Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text('레슨 금액 ${won(data['price'])}',
@@ -605,6 +646,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                       child: const Text('레슨 취소')),
                 if (status == 'accepted' &&
                     isStudent &&
+                    !unpaidTest &&
                     data['price'] is num &&
                     data['paymentId'] == null)
                   StreamBuilder<bool>(
@@ -638,7 +680,10 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                                 ? '할인권 해제'
                                 : '할인권 적용'));
                       }),
-                if (status == 'accepted' && isStudent && data['price'] is num)
+                if (status == 'accepted' &&
+                    isStudent &&
+                    data['price'] is num &&
+                    !unpaidTest)
                   FilledButton(
                       onPressed: busy
                           ? null
@@ -651,6 +696,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                                       service: _payments))),
                       child: const Text('결제하기')),
                 if (status == 'accepted' &&
+                    !unpaidTest &&
                     data['price'] is num &&
                     (isStudent || isInstructor))
                   OutlinedButton(
@@ -688,26 +734,23 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                     icon: const Icon(Icons.history_rounded),
                     label: const Text('변경 내역'),
                   ),
-                if ((status == 'confirmed' ||
-                        (status == 'accepted' &&
-                            data['price'] == null &&
-                            data['paymentRequired'] != true)) &&
+                if ((status == 'confirmed' || ordinaryCompletion) &&
                     isInstructor &&
-                    (status == 'confirmed' ||
-                        (timestampDate(scheduledEndAt) != null &&
-                            !timestampDate(scheduledEndAt)!
-                                .isAfter(DateTime.now().toUtc()))) &&
+                    (status == 'confirmed' || hasEnded || unpaidTest) &&
                     !const ['pending', 'disputed']
                         .contains(data['completionReview']?['status']) &&
                     data['scheduleProposal']?['status'] != 'pending')
                   FilledButton(
-                    onPressed: busy
+                    onPressed: busy || (status != 'confirmed' && !hasEnded)
                         ? null
                         : () => _completeLesson(
                             lesson.id, studentName, signatureMove,
                             paidLesson: status == 'confirmed'),
-                    child:
-                        Text(status == 'confirmed' ? '레슨 완료 및 평가' : '완료 확인 요청'),
+                    child: Text(unpaidTest
+                        ? '결제 없이 완료·평가'
+                        : status == 'confirmed'
+                            ? '레슨 완료 및 평가'
+                            : '완료 확인 요청'),
                   ),
                 if (canChat)
                   TextButton.icon(
@@ -756,6 +799,17 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                   ),
               ],
             ),
+            if (unpaidTest && !hasEnded && isInstructor)
+              Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                      validSchedule
+                          ? '예정된 수업 종료 시각이 지나면 완료·평가할 수 있어요.'
+                          : '레슨 시작·종료 시각을 먼저 등록해 주세요. 종료 시각이 지난 뒤 완료·평가할 수 있어요.',
+                      style: const TextStyle(
+                          color: OnepointDesign.muted,
+                          fontSize: 12,
+                          height: 1.5))),
           ],
         ),
       ),

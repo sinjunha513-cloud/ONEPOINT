@@ -349,6 +349,75 @@ void main() {
     );
   });
 
+  testWidgets(
+      'test mode completes an ended unpaid quote through evaluation and student confirmation',
+      (tester) async {
+    await firestore
+        .doc('app_config/features')
+        .set({'lessonTestModeEnabled': true});
+    await addLesson();
+    await firestore.doc('lesson_requests/lesson').update(
+        {'status': 'accepted', 'price': 50000, 'paymentRequired': true});
+    await showLessons(tester, 'coach');
+    expect(find.text('결제 대기'), findsNothing);
+    expect(find.text('결제 없이 완료·평가'), findsOneWidget);
+    await tester.ensureVisible(find.text('결제 없이 완료·평가'));
+    await tester.tap(find.text('결제 없이 완료·평가'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byType(DropdownButtonFormField<double>));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('4점').last);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.ensureVisible(
+        find.byKey(const ValueKey('lesson-attendance-confirmation')));
+    await tester
+        .tap(find.byKey(const ValueKey('lesson-attendance-confirmation')));
+    await tester.pump();
+    await tester.tap(find.text('평가하고 확인 요청'));
+    await tester.pumpAndSettle();
+    expect(find.text('수강생 참여 확인 대기'), findsOneWidget);
+    await showLessons(tester, 'student');
+    expect(find.text('결제하기'), findsNothing);
+    expect(find.text('할인권 적용'), findsNothing);
+    await tester.ensureVisible(find.text('참여 확인 · 완료'));
+    await tester.tap(find.text('참여 확인 · 완료'));
+    await tester.pumpAndSettle();
+    expect(find.text('완료'), findsOneWidget);
+    expect(find.text('수강생 평가: 4.0 / 5'), findsOneWidget);
+    expect(
+        (await firestore.doc('lesson_requests/lesson').get())
+            .data()!['paymentId'],
+        isNull);
+  });
+
+  testWidgets(
+      'test mode explains the end-time gate and never enables an early or unscheduled completion',
+      (tester) async {
+    await firestore
+        .doc('app_config/features')
+        .set({'lessonTestModeEnabled': true});
+    await addLesson();
+    await firestore.doc('lesson_requests/lesson').update({
+      'status': 'accepted',
+      'scheduledStartAt':
+          Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
+      'scheduledEndAt':
+          Timestamp.fromDate(DateTime.now().add(const Duration(hours: 2)))
+    });
+    await showLessons(tester, 'coach',
+        size: const Size(320, 844), textScale: 1.3);
+    final button = find.widgetWithText(FilledButton, '결제 없이 완료·평가');
+    expect(tester.widget<FilledButton>(button).onPressed, isNull);
+    expect(find.text('예정된 수업 종료 시각이 지나면 완료·평가할 수 있어요.'), findsOneWidget);
+    await firestore.doc('lesson_requests/lesson').update({
+      'scheduledStartAt': FieldValue.delete(),
+      'scheduledEndAt': FieldValue.delete()
+    });
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(button).onPressed, isNull);
+    expect(find.textContaining('레슨 시작·종료 시각을 먼저 등록'), findsOneWidget);
+  });
+
   testWidgets('missing signature directs the coach to My Page management',
       (tester) async {
     await addLesson();

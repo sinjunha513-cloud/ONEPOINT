@@ -1,0 +1,122 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-24T13:47:46.877Z",
+  "primaryUrl": "https://onlyonepoint-lesson.web.app",
+  "sites": [
+    {
+      "site": "onlyonepoint-lesson",
+      "url": "https://onlyonepoint-lesson.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795528027040000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/5eedb345d34d011b",
+      "releaseTime": "2026-11-24T13:47:07.040Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "c41c044de08ec2c8f3818154f51dd25751006b62b193cf8b80973598675b7f60",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "d12a0edf37b20601f73342c245db7a63b142f437f2e61abeab7d2a0cdb243a6a",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "5947918df40e64c3ff2bb80699bd9dcaf9fa1047c26e2df522aac54ef8547de3",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "onepoint-push-sw.js",
+          "status": 200,
+          "sha256": "e6ee8a86ea1b1218a1507ab4f33d97b03a722eda86a4a27f510410ec67bc7cf8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "url": "https://onlyonepoint-lesson-v2.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795528027538000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/471a9b000097edda",
+      "releaseTime": "2026-11-24T13:47:07.538Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "c41c044de08ec2c8f3818154f51dd25751006b62b193cf8b80973598675b7f60",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "d12a0edf37b20601f73342c245db7a63b142f437f2e61abeab7d2a0cdb243a6a",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "5947918df40e64c3ff2bb80699bd9dcaf9fa1047c26e2df522aac54ef8547de3",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "onepoint-push-sw.js",
+          "status": 200,
+          "sha256": "e6ee8a86ea1b1218a1507ab4f33d97b03a722eda86a4a27f510410ec67bc7cf8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "authorizedDomains": [
+    "localhost",
+    "onlyonepoint-lesson.firebaseapp.com",
+    "onlyonepoint-lesson.web.app",
+    "onlyonepoint-lesson-v2.web.app"
+  ],
+  "verification": "Published index, bootstrap, application bundle and push worker hashes match the local release build on both existing sites.",
+  "browserChecks": [
+    {
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    },
+    {
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    }
+  ],
+  "version": {
+    "app_name": "onepoint_lesson",
+    "version": "1.1.1",
+    "build_number": "3",
+    "package_name": "onepoint_lesson"
+  },
+  "validation": {
+    "focusedFlutterTests": 30,
+    "narrowMobileTestModeRetest": 2,
+    "functionsUnitTests": 30,
+    "securityEmulatorTests": 63,
+    "webStartupAndPushWorkerTests": 9,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed"
+  },
+  "scope": "Payment-free test completion; valid scheduled end required; coach evaluation then student confirmation."
+}
