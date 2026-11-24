@@ -53,11 +53,9 @@ void main() async {
           defaultTargetPlatform == TargetPlatform.iOS)) {
     unawaited(watchPaymentLinks().catchError((Object _) {}));
   }
-  if (!paymentDemo &&
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS)) {
-    unawaited(NotificationService.initialize().catchError((Object error) {
+  if (!paymentDemo) {
+    unawaited(NotificationService.initialize(navigatorKey: paymentNavigatorKey)
+        .catchError((Object error) {
       debugPrint('알림 초기화 실패: $error');
     }));
   }

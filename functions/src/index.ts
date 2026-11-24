@@ -130,3 +130,8 @@ export {saveAvailabilitySlot, saveAvailabilitySlots, deleteAvailabilitySlot, res
 export {notifyLessonActivity, notifyChatMessage, notifyLessonFeedback, notifyCoachReview, notifyFeedReaction, syncMyNotifications} from "./notifications";
 
 export {acceptLesson, rejectLesson, cancelLesson, respondScheduleChange, respondLessonCompletion, resolveLessonDispute, expireLessonRequests} from "./lesson_workflow";
+export {setUserBlocked,submitReport,resolveReport,notifyReportActivity,projectPublicFeed,refreshAuthorFeed} from './community';
+export {getPushConfiguration,registerPushDevice,unregisterPushDevice,setPushPreference,sendNotificationPush} from './push_delivery';
+export {requestAccountDeletion,beginAccountCleanup,retryAccountCleanup} from './account_lifecycle';
+export {getMediaPlayback} from './media_playback';
+export {syncMyActivity,syncLessonActivity} from './activity_stats';

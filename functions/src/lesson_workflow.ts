@@ -3,6 +3,7 @@ import {CallableRequest, HttpsError, onCall} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {documentId} from "./domain";
 import {supportedSports} from "./models";
+import {assertNotBlocked} from "./platform_access";
 
 const options = {region: "asia-northeast3", maxInstances: 2, timeoutSeconds: 120};
 const db = () => getFirestore();
@@ -138,6 +139,7 @@ async function createRequest(r: CallableRequest, withSlot: boolean) {
   const ref = db().collection("lesson_requests").doc();
   await db().runTransaction(async tx => {
     const student = await member(tx, uid), profile = await coach(tx, coachUid);
+    await assertNotBlocked(tx, uid, coachUid);
     if (!["student", "coach", "admin"].includes(student.role) || !(supportedSports as readonly string[]).includes(profile.sport)) throw new HttpsError("permission-denied", "신청 가능한 회원과 코치가 필요합니다.");
     const slot = slotRef ? (await tx.get(slotRef)).data() : null;
     const calendar = await calendars(tx, [uid, coachUid]);

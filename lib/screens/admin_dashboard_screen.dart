@@ -8,6 +8,7 @@ import 'payment_history_screen.dart';
 import '../services/admin_account_service.dart';
 import '../services/career_pdf_service.dart';
 import 'lesson_disputes_panel.dart';
+import 'reports_management_panel.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key, this.auth, this.firestore});
@@ -31,7 +32,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -80,7 +81,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       appBar: AppBar(
         title: const Text('관리자 대시보드',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF0D0F12),
+        backgroundColor: OnepointDesign.background,
         elevation: 0,
         actions: [
           IconButton(
@@ -105,6 +106,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Tab(text: '코치 승인 요청'),
             Tab(text: '회원 관리'),
             Tab(text: '레슨 이의 제기'),
+            Tab(text: '신고 관리'),
           ],
         ),
       ),
@@ -115,6 +117,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _buildCoachApprovalTab(),
           _buildUserManagementTab(),
           LessonDisputesPanel(firestore: _db, auth: _auth),
+          ReportsManagementPanel(firestore: _db, auth: _auth),
         ],
       ),
     );

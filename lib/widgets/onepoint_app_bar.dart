@@ -122,20 +122,23 @@ class OnepointAppBar extends StatelessWidget implements PreferredSizeWidget {
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: OnepointDesign.heading),
-                        if (sectionSubtitle != null) ...[
-                          const SizedBox(height: 4),
-                          Text(sectionSubtitle!,
-                              style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 10,
-                                  color: Colors.white70)),
-                        ],
-                      ]),
+                      child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                            Text(title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: OnepointDesign.heading),
+                            if (sectionSubtitle != null) ...[
+                              const SizedBox(height: 4),
+                              Text(sectionSubtitle!,
+                                  style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 10,
+                                      color: Colors.white70)),
+                            ],
+                          ])),
                     ),
                   ),
                 ),

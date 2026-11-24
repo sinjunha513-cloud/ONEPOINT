@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import 'video_upload_screen.dart';
 import '../widgets/onepoint_app_bar.dart';
 import '../widgets/onepoint_icon.dart';
 import '../config/onepoint_design.dart';
+import '../services/community_service.dart';
+import '../widgets/member_actions.dart';
 
 class ShortformFeedScreen extends StatefulWidget {
   const ShortformFeedScreen({
@@ -35,6 +38,77 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
   late final FeedService _feedService = widget.feedService ?? FeedService();
   VideoUploadService? _videoService;
   final Set<String> _deleting = <String>{};
+  final _extra = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+  QueryDocumentSnapshot<Map<String, dynamic>>? _tail;
+  bool _hasMore = false, _loadingMore = false;
+  int _version = 0;
+  late Future<QuerySnapshot<Map<String, dynamic>>> _firstPage;
+  StreamSubscription? _blocks;
+  Set<String> _blocked = {};
+  late final _community =
+      CommunityService(firestore: _firestore, auth: _feedService.auth);
+  Query<Map<String, dynamic>> get _query => _firestore
+      .collection('public_feed_videos')
+      .orderBy('createdAt', descending: true);
+  @override
+  void initState() {
+    super.initState();
+    _firstPage = _fetchFirst();
+    _blocks = _community.blocked().listen((s) {
+      if (mounted) setState(() => _blocked = s.docs.map((d) => d.id).toSet());
+    }, onError: (Object _) {});
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> _fetchFirst() async {
+    final v = ++_version, page = await _query.limit(20).get();
+    if (mounted && v == _version) {
+      setState(() {
+        _tail = page.docs.lastOrNull;
+        _hasMore = page.size == 20;
+      });
+    }
+    return page;
+  }
+
+  void _refresh() {
+    setState(() {
+      _extra.clear();
+      _currentPage = 0;
+      _loadingMore = false;
+      _hasMore = false;
+      _firstPage = _fetchFirst();
+    });
+  }
+
+  Future<void> _more() async {
+    final tail = _tail;
+    if (tail == null || _loadingMore) return;
+    final v = _version;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await _query.startAfterDocument(tail).limit(20).get();
+      if (mounted && v == _version) {
+        setState(() {
+          _extra.addAll(page.docs);
+          _tail = page.docs.lastOrNull ?? tail;
+          _hasMore = page.size == 20;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('추가 영상을 불러오지 못했습니다. 다시 시도해 주세요.')));
+      }
+    } finally {
+      if (mounted && v == _version) setState(() => _loadingMore = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _blocks?.cancel();
+    super.dispose();
+  }
 
   VideoUploadService get _videos =>
       _videoService ??= widget.videoService ?? VideoUploadService();
@@ -72,7 +146,7 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
     try {
       await _videos.deleteFeedVideo(videoId);
       if (!mounted) return;
-      setState(() => _currentPage = 0);
+      _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('숏폼 영상을 삭제했습니다.')),
       );
@@ -91,11 +165,8 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: const OnepointAppBar(
             title: '레슨 영상 피드', sectionSubtitle: 'TRAINING FEED'),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _firestore
-              .collection('feed_videos')
-              .orderBy('createdAt', descending: true)
-              .snapshots(),
+        body: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          future: _firstPage,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return const Center(child: Text('피드를 불러오지 못했습니다.'));
@@ -103,7 +174,11 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            final docs = snapshot.data!.docs;
+            final seen = <String>{};
+            final docs = [...snapshot.data!.docs, ..._extra]
+                .where((d) =>
+                    seen.add(d.id) && !_blocked.contains(d.data()['userId']))
+                .toList();
             if (docs.isEmpty) {
               return const Center(
                 child: Padding(
@@ -143,7 +218,13 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
                         380.0, math.max(180.0, constraints.maxWidth - 32));
                     final maxVideoHeight = math.min(
                       560.0,
-                      math.max(190.0, constraints.maxHeight * .60),
+                      math.max(
+                          80.0,
+                          math.min(
+                              constraints.maxHeight * .60,
+                              constraints.maxHeight -
+                                  112 -
+                                  MediaQuery.textScalerOf(context).scale(90))),
                     );
                     final videoHeight = math.min(
                       maxVideoHeight,
@@ -159,161 +240,193 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
                     );
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: contentWidth,
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.swipe_vertical_rounded,
-                                  size: 18,
-                                  color: Colors.white54,
-                                ),
-                                const SizedBox(width: 6),
-                                const Expanded(
-                                  child: Text(
-                                    '위아래로 넘겨서 보기',
-                                    style: TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  '${index + 1} / ${docs.length}',
-                                  style: const TextStyle(
-                                    color: Color(0xFFBAE6FD),
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            key: ValueKey('shortform-card-$videoId'),
-                            width: videoWidth,
-                            height: videoHeight,
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFF373737),
-                              ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x66000000),
-                                  blurRadius: 24,
-                                  offset: Offset(0, 12),
-                                ),
-                              ],
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: VideoItemWidget(
-                              key: ValueKey(videoId),
-                              videoUrl: url,
-                              fit: BoxFit.contain,
-                              isPlaying:
-                                  widget.isActive && index == _currentPage,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            width: contentWidth,
-                            padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF252525),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFF373737),
-                              ),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        data['userName'] as String? ?? '사용자',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Color(0xFFBAE6FD),
-                                          fontWeight: FontWeight.w700,
+                      child: SingleChildScrollView(
+                          child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                  minHeight:
+                                      math.max(0, constraints.maxHeight - 28)),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: contentWidth,
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.swipe_vertical_rounded,
+                                          size: 18,
+                                          color: Colors.white54,
                                         ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        data['title'] as String? ?? '',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
+                                        const SizedBox(width: 6),
+                                        const Expanded(
+                                          child: Text(
+                                            '위아래로 넘겨서 보기',
+                                            style: TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 12,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      if ((data['description'] as String? ?? '')
-                                          .isNotEmpty) ...[
-                                        const SizedBox(height: 3),
                                         Text(
-                                          data['description'] as String,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
+                                          '${index + 1} / ${docs.length}',
                                           style: const TextStyle(
-                                            color: Colors.white70,
+                                            color: Color(0xFFBAE6FD),
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ],
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                _FeedLikeButton(
-                                  key: ValueKey('like-$videoId'),
-                                  service: _feedService,
-                                  videoId: videoId,
-                                  authorId: authorId,
-                                  likes: (data['likes'] as num?)?.toInt() ?? 0,
-                                ),
-                                if (ownVideo) ...[
-                                  const SizedBox(width: 4),
-                                  IconButton(
-                                    key: ValueKey('delete-feed-$videoId'),
-                                    tooltip: '내 영상 삭제',
-                                    onPressed: deleting
-                                        ? null
-                                        : () => _deleteFeedVideo(
-                                              videoId,
-                                              data['title'] as String? ?? '',
-                                            ),
-                                    style: IconButton.styleFrom(
-                                      backgroundColor: Colors.redAccent
-                                          .withValues(alpha: .14),
-                                      foregroundColor: const Color(0xFFFF8A80),
                                     ),
-                                    icon: deleting
-                                        ? const SizedBox.square(
-                                            dimension: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.delete_outline_rounded,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    key: ValueKey('shortform-card-$videoId'),
+                                    width: videoWidth,
+                                    height: videoHeight,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: const Color(0xFF373737),
+                                      ),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x66000000),
+                                          blurRadius: 24,
+                                          offset: Offset(0, 12),
+                                        ),
+                                      ],
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: VideoItemWidget(
+                                      key: ValueKey(videoId),
+                                      videoUrl: url,
+                                      videoId: videoId,
+                                      fit: BoxFit.contain,
+                                      isPlaying: widget.isActive &&
+                                          index == _currentPage,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: contentWidth,
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 12, 10, 12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF252525),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(0xFF373737),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                data['userName'] as String? ??
+                                                    '사용자',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Color(0xFFBAE6FD),
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                data['title'] as String? ?? '',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              if ((data['description']
+                                                          as String? ??
+                                                      '')
+                                                  .isNotEmpty) ...[
+                                                const SizedBox(height: 3),
+                                                Text(
+                                                  data['description'] as String,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Colors.white70,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        if (!ownVideo)
+                                          IconButton(
+                                              tooltip: '신고·차단',
+                                              icon: const Icon(Icons.more_vert),
+                                              onPressed: () =>
+                                                  showMemberActions(context,
+                                                      uid: authorId,
+                                                      name: data['userName']
+                                                              as String? ??
+                                                          '회원',
+                                                      service: _community,
+                                                      videoId: videoId)),
+                                        _FeedLikeButton(
+                                          key: ValueKey('like-$videoId'),
+                                          service: _feedService,
+                                          videoId: videoId,
+                                          authorId: authorId,
+                                          likes: (data['likes'] as num?)
+                                                  ?.toInt() ??
+                                              0,
+                                        ),
+                                        if (ownVideo) ...[
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            key: ValueKey(
+                                                'delete-feed-$videoId'),
+                                            tooltip: '내 영상 삭제',
+                                            onPressed: deleting
+                                                ? null
+                                                : () => _deleteFeedVideo(
+                                                      videoId,
+                                                      data['title']
+                                                              as String? ??
+                                                          '',
+                                                    ),
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: Colors.redAccent
+                                                  .withValues(alpha: .14),
+                                              foregroundColor:
+                                                  const Color(0xFFFF8A80),
+                                            ),
+                                            icon: deleting
+                                                ? const SizedBox.square(
+                                                    dimension: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Icon(
+                                                    Icons
+                                                        .delete_outline_rounded,
+                                                  ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                              ))),
                     );
                   },
                 );
@@ -321,12 +434,34 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
             );
           },
         ),
+        bottomNavigationBar: SafeArea(
+            top: false,
+            child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton.icon(
+                          onPressed: _refresh,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('새로고침')),
+                      if (_hasMore)
+                        OutlinedButton(
+                            onPressed: _loadingMore ? null : _more,
+                            child: Text(_loadingMore ? '불러오는 중…' : '영상 더 보기')),
+                    ]))),
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: OnepointDesign.lime,
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const VideoUploadScreen()),
-          ),
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const VideoUploadScreen()),
+            );
+            if (mounted) _refresh();
+          },
           icon: const Icon(Icons.add_rounded, color: Colors.black),
           label: const Text(
             '영상 추가',

@@ -3,6 +3,7 @@ import {getStorage} from "firebase-admin/storage";
 import {CallableRequest, HttpsError, onCall} from "firebase-functions/v2/https";
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
 import {documentId} from "./domain";
+import {assertNotBlocked} from './platform_access';
 
 const options = {region: "asia-northeast3", maxInstances: 2};
 const stamp = () => FieldValue.serverTimestamp();
@@ -58,6 +59,10 @@ export const setFeedLiked = onCall(options, async request => {
     if (!video || video.deleting === true || typeof video.userId !== "string" || video.userId === uid) throw new HttpsError("failed-precondition", "다른 회원의 영상만 좋아요를 누를 수 있습니다.");
     const author = (await tx.get(db().collection("users").doc(video.userId))).data();
     if (!author) throw new HttpsError("failed-precondition", "영상 작성자의 계정이 없습니다.");
+    if(input.liked){
+      if(video.moderationStatus==='hidden'||author.profileCompleted!==true||(author.accountStatus??'active')!=='active')throw new HttpsError('failed-precondition','현재 확인할 수 없는 영상입니다.');
+      await assertNotBlocked(tx,uid,video.userId);
+    }
     if (like.exists === input.liked) return;
     const delta = input.liked ? 1 : -1;
     tx.update(ref, {likes: Math.max(0, (video.likes ?? 0) + delta)});
@@ -82,6 +87,7 @@ export const deleteVideo = onCall(options, async request => {
     const prefix = feedback ? `lesson_feedback/${lessonId}/${owner}/` : `videos/${uid}/`;
     if (typeof video.storagePath !== "string" || !video.storagePath.startsWith(prefix) || video.storagePath.slice(prefix.length).includes("/")) throw new HttpsError("failed-precondition", "영상 경로를 확인해 주세요.");
     tx.update(ref, {deleting: true});
+    if(!feedback)tx.delete(db().doc(`public_feed_videos/${videoId}`));
     return video.storagePath as string;
   });
   await getStorage().bucket().file(path).delete({ignoreNotFound: true});

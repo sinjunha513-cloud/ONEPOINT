@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/lesson_service.dart';
@@ -18,6 +19,8 @@ import '../models/lesson_badge.dart';
 import 'lesson_badges_screen.dart';
 import '../services/coupon_service.dart';
 import '../widgets/monthly_lesson_goal_card.dart';
+import '../services/community_service.dart';
+import '../widgets/member_actions.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key, this.firestore, this.auth});
@@ -31,6 +34,30 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   String selectedSport = '전체';
+  final _blocked = <String>{};
+  StreamSubscription? _blockSubscription;
+  @override
+  void initState() {
+    super.initState();
+    if (_auth.currentUser != null) {
+      _blockSubscription =
+          CommunityService(firestore: _db, auth: _auth).blocked().listen((s) {
+        if (mounted) {
+          setState(() {
+            _blocked.clear();
+            _blocked.addAll(s.docs.map((d) => d.id));
+          });
+        }
+      }, onError: (Object _) {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _blockSubscription?.cancel();
+    super.dispose();
+  }
+
   late final FirebaseFirestore _db =
       widget.firestore ?? FirebaseFirestore.instance;
   late final FirebaseAuth _auth = widget.auth ?? FirebaseAuth.instance;
@@ -70,7 +97,9 @@ class _MainScreenState extends State<MainScreen> {
               StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _lessons,
             builder: (context, lessons) {
-              final docs = coaches.data?.docs ?? [];
+              final docs = (coaches.data?.docs ?? [])
+                  .where((d) => !_blocked.contains(d.id))
+                  .toList();
               final requests = lessons.data?.docs ?? [];
               final pending =
                   requests.where((d) => d.data()['status'] == 'pending').length;
@@ -371,7 +400,9 @@ class _MainScreenState extends State<MainScreen> {
   Widget _recommendedCard(
       AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
       Map<String, dynamic> profile) {
-    final docs = snapshot.data?.docs ?? [];
+    final docs = (snapshot.data?.docs ?? [])
+        .where((d) => !_blocked.contains(d.id))
+        .toList();
     final ranked = _recommendations.rank(
         coaches: [for (final d in docs) CoachCandidate(d.id, d.data())],
         profile: profile,
@@ -391,11 +422,29 @@ class _MainScreenState extends State<MainScreen> {
           ? null
           : () => _showInstructorDetail(context, coach.id, coach.data),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('추천 코치',
-            style: TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.w600)),
+        Row(children: [
+          const Expanded(
+              child: Text('추천 코치',
+                  style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600))),
+          IconButton(
+              tooltip: '추천 기준',
+              onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                          title: const Text('내 정보에 맞춘 코치 추천'),
+                          content: const Text(
+                              '가입할 때 입력한 관심 종목(50점), 운동 경험과 코치 수업 난이도(30점), 학습 목표와 지도 분야(20점)를 함께 살펴봐요. 같은 점수의 코치는 매일 순서를 바꿔 보여드려요.\n\n추천 점수는 실력이나 만족도를 보장하는 확률이 아니에요. 관심 종목과 목표는 프로필 수정에서 바꿀 수 있어요.'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('확인'))
+                          ])),
+              icon: const Icon(Icons.info_outline,
+                  size: 19, color: Colors.black)),
+        ]),
         const SizedBox(height: 16),
         SizedBox(
             height: 128,
@@ -530,6 +579,14 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                       ),
                       // ★ 상대방 프로필 이동 버튼 (오류 수정됨: targetUserId만 전달)
+                      IconButton(
+                          tooltip: '신고·차단',
+                          icon: const Icon(Icons.more_vert),
+                          onPressed: () => showMemberActions(context,
+                              uid: docId,
+                              name: data['name'] as String? ?? '코치',
+                              service: CommunityService(
+                                  firestore: _db, auth: _auth))),
                       TextButton.icon(
                         icon: const Icon(Icons.person_outline, size: 18),
                         label: const Text('프로필 보기'),
@@ -551,7 +608,9 @@ class _MainScreenState extends State<MainScreen> {
                   Text('종목: ${data['sport']}'),
                   Text('수업 난이도: ${data['lessonLevel'] ?? '코치와 상담 후 결정'}'),
                   Text('이력: ${data['career']}'),
-                  Text('평점: ★ ${data['rating']}'),
+                  const Text('아직 등록된 수강생 후기가 없습니다.',
+                      style:
+                          TextStyle(color: OnepointDesign.muted, fontSize: 12)),
                   if ((data['signatureMove'] as String? ?? '')
                       .trim()
                       .isNotEmpty) ...[

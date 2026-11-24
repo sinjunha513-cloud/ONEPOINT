@@ -14,6 +14,8 @@ class FeedService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final FirebaseFunctions? _functions;
+  FirebaseFirestore get firestore => _firestore;
+  FirebaseAuth get auth => _auth;
 
   String? get currentUserId => _auth.currentUser?.uid;
 

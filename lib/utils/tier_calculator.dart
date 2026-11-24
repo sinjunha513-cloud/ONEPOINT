@@ -35,24 +35,9 @@ class TierCalculator {
     required int teacherMatchCount,
     required int feedLikeCount,
   }) {
-    // 💡 1. 비율 기반(비례) 점수 산정 로직 적용
-    // [레슨 빈도] 3회당 20점 -> 1회당 약 6.66점
-    double lessonExp = lessonCount * (20.0 / 3.0);
-
-    // [코치 평점] 5점 만점 기준 50점 -> 1점당 10점
-    double reviewExp = 0;
-    for (double score in reviewScores) {
-      reviewExp += (score * 10.0);
-    }
-
-    // [코치 매칭 요청] 1회당 10점
-    double matchExp = teacherMatchCount * 10.0;
-
-    // [피드 좋아요] 1개당 1점
-    double likeExp = feedLikeCount * 1.0;
-
-    // 총합 계산 (소수점 버림 처리로 정수 EXP 계산)
-    int totalExp = (lessonExp + reviewExp + matchExp + likeExp).toInt();
+    // Activity only: confirmed completions earn 20 EXP. Likes, subjective
+    // evaluation scores and matching requests never inflate this indicator.
+    int totalExp = (lessonCount < 0 ? 0 : lessonCount) * 20;
 
     // 2. 100점당 1티어 승급 계산
     int tierIndex = totalExp ~/ 100;

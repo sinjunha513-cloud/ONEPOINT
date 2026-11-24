@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/community_service.dart';
+import '../config/onepoint_design.dart';
 
 class ReportDialog extends StatefulWidget {
   final String reportedUserId;
   final String reportedUserName;
+  final CommunityService? service;
+  final String targetType;
+  final String? targetId;
 
   const ReportDialog({
     super.key,
     required this.reportedUserId,
     required this.reportedUserName,
+    this.service,
+    this.targetType = 'user',
+    this.targetId,
   });
 
   @override
@@ -17,15 +23,22 @@ class ReportDialog extends StatefulWidget {
 }
 
 class _ReportDialogState extends State<ReportDialog> {
-  static const Color pitchDark = Color(0xFF070D1B);
-  static const Color midnight = Color(0xFF0B132B);
-  static const Color volt = Color(0xFFC6FF00);
+  static const Color pitchDark = OnepointDesign.background;
+  static const Color midnight = OnepointDesign.surface;
+  static const Color volt = OnepointDesign.lime;
   static const Color warningRed = Color(0xFFFF4D4D);
   static const Color warningOrange = Color(0xFFFF9F43);
 
   String? _selectedReason;
   final TextEditingController _detailController = TextEditingController();
   bool _isSubmitting = false;
+  late final _service = widget.service ?? CommunityService();
+  late final _requestId = _service.newRequestId();
+  @override
+  void dispose() {
+    _detailController.dispose();
+    super.dispose();
+  }
 
   // 1. 즉시 영구 정지 사유 (괄호 제거)
   final List<String> _oneStrikeReasons = [
@@ -65,23 +78,12 @@ class _ReportDialogState extends State<ReportDialog> {
     setState(() => _isSubmitting = true);
 
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final bool isOneStrike = _oneStrikeReasons.contains(_selectedReason);
-
-      // Firestore에 신고 데이터 저장
-      await FirebaseFirestore.instance.collection('reports').add({
-        'reporterId': currentUser?.uid ?? 'anonymous',
-        'reporterEmail': currentUser?.email ?? '',
-        'reportedUserId': widget.reportedUserId,
-        'reportedUserName': widget.reportedUserName,
-        'reason': _selectedReason,
-        'detail': _detailController.text.trim(),
-        'sanctionType': isOneStrike
-            ? 'ONE_STRIKE_OUT'
-            : (_selectedReason == _otherReason ? 'OTHER' : 'THREE_STRIKES_OUT'),
-        'status': 'PENDING',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await _service.report(
+          targetType: widget.targetType,
+          targetId: widget.targetId ?? widget.reportedUserId,
+          reason: _selectedReason!,
+          details: _detailController.text.trim(),
+          requestId: _requestId);
 
       if (mounted) {
         Navigator.pop(context);
@@ -95,7 +97,7 @@ class _ReportDialogState extends State<ReportDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('신고 접수 중 오류가 발생했습니다: $e')),
+          SnackBar(content: Text(communityError(e))),
         );
       }
     } finally {
@@ -123,14 +125,17 @@ class _ReportDialogState extends State<ReportDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  Expanded(
+                      child: Text(
                     '${widget.reportedUserName} 유저 신고',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
+                  )),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.grey),
                     onPressed: () => Navigator.pop(context),
@@ -150,8 +155,7 @@ class _ReportDialogState extends State<ReportDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Group 1: 즉시 영구 정지 (괄호 문구 제거됨)
-                    _buildCategoryHeader(
-                        '즉시 영구 정지 사유', warningRed, Icons.gavel),
+                    _buildCategoryHeader('안전·언행 관련', warningRed, Icons.gavel),
                     const SizedBox(height: 8),
                     ..._oneStrikeReasons
                         .map((reason) => _buildRadioTile(reason, warningRed)),
@@ -159,8 +163,8 @@ class _ReportDialogState extends State<ReportDialog> {
                     const SizedBox(height: 16),
 
                     // Group 2: 단계별 경고 및 누적 제재 (괄호 문구 제거됨)
-                    _buildCategoryHeader('단계별 경고 및 누적 제재 사유', warningOrange,
-                        Icons.warning_amber),
+                    _buildCategoryHeader(
+                        '수업·이용 관련', warningOrange, Icons.warning_amber),
                     const SizedBox(height: 8),
                     ..._threeStrikeReasons.map(
                         (reason) => _buildRadioTile(reason, warningOrange)),
@@ -179,6 +183,7 @@ class _ReportDialogState extends State<ReportDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: _detailController,
+                maxLength: 5000,
                 maxLines: 3,
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: InputDecoration(

@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 import '../widgets/onepoint_icon.dart';
+import '../widgets/member_actions.dart';
+import '../services/community_service.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String roomId;
@@ -20,7 +22,9 @@ class ChatRoomScreen extends StatefulWidget {
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final _controller = TextEditingController();
   late final _service = widget.service ?? ChatService();
+  late final _other = _service.otherMember(widget.roomId);
   bool _sending = false;
+  int _messageLimit = 50;
 
   Future<void> _send() async {
     final text = _controller.text.trim();
@@ -50,6 +54,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: const Color(0xFF070101),
         appBar: AppBar(
+          actions: [
+            FutureBuilder<String?>(
+                future: _other,
+                builder: (context, s) => s.data == null
+                    ? const SizedBox.shrink()
+                    : IconButton(
+                        tooltip: '신고·차단',
+                        icon: const Icon(Icons.more_vert),
+                        onPressed: () => showMemberActions(context,
+                            uid: s.data!,
+                            name: widget.targetName,
+                            service: CommunityService(
+                                firestore: _service.firestore,
+                                auth: _service.auth))))
+          ],
           backgroundColor: const Color(0xFF070101),
           foregroundColor: const Color(0xFFFFFFFF),
           surfaceTintColor: Colors.transparent,
@@ -92,7 +111,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         body: Column(children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _service.messages(widget.roomId),
+              stream: _service.messages(widget.roomId, limit: _messageLimit),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(
@@ -124,8 +143,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 return ListView.builder(
                   reverse: true,
                   padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
+                  itemCount:
+                      docs.length + (docs.length == _messageLimit ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index == docs.length) {
+                      return TextButton(
+                          onPressed: () => setState(() => _messageLimit += 50),
+                          child: const Text('이전 메시지 더 보기'));
+                    }
                     final data = docs[index].data();
                     final mine = data['senderId'] == _service.currentUid;
                     return Align(

@@ -7,7 +7,7 @@
 >
 > 현재 UI와 주요 기능을 지속적으로 개발·개선하고 있으며, 변경 사항을 수시로 반영하고 있습니다.
 >
-> **최근 업데이트 (2026-11-24):** 레슨 예약·일정 변경·완료 확인을 개선했습니다. 같은 코치와 여러 날짜를 예약할 수 있으며, 수강생과 코치의 겹치는 레슨은 서버에서 차단합니다. 일정 변경은 상대방 승인 후 확정되고, 완료 실적은 수업 종료 후 코치 요청과 수강생 참여 확인을 거쳐 반영합니다.
+> **최근 업데이트 (2026-11-24 · v1.1.0):** `onepoint` 시작·로그인 로고와 애니메이션을 정리하고, 알림 설정·비밀번호 재설정·본인 확인 후 회원탈퇴·신고/차단·운영진 신고 처리를 추가했습니다. 영상은 필요한 항목만 스트리밍하며, 추천 기준과 완료 레슨에 따른 활동 점수를 안내합니다. 월간 목표는 수강생 20회이며, 달성 시 30일 유효한 10% 할인권을 받을 수 있습니다.
 >
 > [모바일·PC 웹에서 최신 버전 확인하기](https://onlyonepoint-lesson.web.app)
 
@@ -48,7 +48,7 @@ A preview of the current ONEPOINT development interface. Screenshots illustrate 
 
 | Sign in | Coach discovery |
 | :---: | :---: |
-| <img src="screenshots/screenshots/%EC%8A%A4%ED%81%AC%EB%A6%B0%EC%83%B7%202026-11-13%20124725.png" alt="ONEPOINT sign-in screen" width="430"> | <img src="screenshots/screenshots/01-home.png" alt="Sports categories and coach discovery" width="430"> |
+| <img src="screenshots/hosting-mobile-20261124-final.png" alt="ONEPOINT sign-in screen" width="430"> | <img src="screenshots/screenshots/01-home.png" alt="Sports categories and coach discovery" width="430"> |
 | **Email and Google sign-in interface** | **Browse sports categories and recommended coaches** |
 
 | Coach availability | Short-form upload |
@@ -63,6 +63,18 @@ A preview of the current ONEPOINT development interface. Screenshots illustrate 
 Browse sports video content in the feed.
 
 ## Key features
+
+### Account, community and media release (2026-11-24)
+
+- **Brand:** native `onepoint` wordmark in the existing Inter font, black/white/blue Figma palette, startup fade/slide, and reduced-motion support. Existing launcher icons are retained.
+- **Notifications:** private activity inbox plus opt-in browser Web Push and native FCM registration; account-owned devices, logout cleanup, preview privacy and invalid-token removal. Historical inbox sync does not resend old activity as push notifications. iOS/iPadOS web notifications require a web app added to the Home Screen. Real-device delivery still requires device permission and acceptance testing; native iOS also requires APNs configuration.
+- **Account recovery and withdrawal:** email password reset with a neutral result, recent password/Google reauthentication for withdrawal, and a server queue that disables access, removes personal uploads/messages and anonymizes retained shared lesson records. Pending or active lessons must be resolved first. Administrator accounts use the existing managed account workflow.
+- **Community operations:** report members/videos, privately block/unblock members, and stop new bookings/messages between blocked accounts. Administrators can dismiss, warn or hide reported videos with a reason and recorded history; reports do not automatically impose a permanent ban.
+- **Media:** cursor pages of 20 public feed summaries, bounded initial chat history with older-message loading, one active video player and 15-minute server-authorized streaming URLs. Private feedback remains limited to actual lesson participants and administrators.
+- **Honest progress and recommendations:** confirmed completions give 20 activity EXP; likes and evaluation scores do not inflate the tier. Student learning and coach teaching totals are distinct. Coach recommendations explain their sport/experience/goal matching criteria and do not claim an AI success probability or an uncollected review rating.
+- **Student rewards:** 20 completed lessons in the current Korean calendar month unlock one 10% coupon, valid for 30 days from claim. Coaches do not receive this reward; the platform fee covers the discount while preserving coach settlement. Live payment activation remains a separate task.
+
+Validation and deployment evidence are recorded in `docs/deployment/2026-11-24-platform-finalization.json` and `docs/deployment/2026-11-24-final-hosting.json`.
 
 ### Lesson workflow (2026-11-23)
 

@@ -1,18 +1,35 @@
 import 'package:flutter/material.dart';
+import '../config/onepoint_design.dart';
 
-/// The supplied SVG wraps a PNG rather than vector paths. Render its unchanged
-/// embedded image so it works on Flutter web and mobile without SVG patterns.
+/// Native wordmark using the existing Figma Inter font, with no image dependency.
 class OnepointLogo extends StatelessWidget {
-  const OnepointLogo({super.key});
+  const OnepointLogo({super.key, this.width = 121});
+  final double width;
 
   @override
-  Widget build(BuildContext context) => Image.asset(
-        'assets/brand/onepoint-logo.png',
-        width: 121,
-        height: 34,
-        // Reproduce the SVG's centered, cropped 121 x 34 viewport.
-        fit: BoxFit.cover,
-        semanticLabel: 'ONEPOINT',
-        filterQuality: FilterQuality.high,
+  Widget build(BuildContext context) => Semantics(
+        label: 'onepoint',
+        child: ExcludeSemantics(
+            child: SizedBox(
+          width: width,
+          height: width * 34 / 121,
+          child: const FittedBox(
+              fit: BoxFit.contain,
+              child: Text.rich(
+                TextSpan(children: [
+                  TextSpan(text: 'one'),
+                  TextSpan(
+                      text: 'p', style: TextStyle(color: OnepointDesign.blue)),
+                  TextSpan(text: 'oint')
+                ]),
+                style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 32,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -1.8,
+                    height: 1,
+                    color: Colors.white),
+              )),
+        )),
       );
 }

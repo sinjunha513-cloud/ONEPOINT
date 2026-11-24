@@ -114,3 +114,41 @@ worker caches from earlier releases.
 
 The hosting receipt records the live URLs/releases, exact published index,
 bootstrap and application JavaScript hashes, and mobile/desktop browser checks.
+
+## November 24: account, community, media and brand finalization
+
+`2026-11-24-platform-finalization.json` records 50 ACTIVE platform functions,
+matching deployed Firestore/Storage rules, four READY collection-group indexes,
+12 unauthenticated callable rejection checks, and enabled five-minute lesson
+expiry/account-cleanup schedules. `2026-11-24-final-hosting.json` records both
+live sites and exact index, bootstrap, app-bundle and push-worker hashes.
+
+The release adds opt-in notification delivery, password recovery, recently
+reauthenticated self-withdrawal, report/block operations, bounded feed/chat
+loading, authorized media streaming and completion-based activity counters.
+The startup and login wordmark is native `onepoint` text in the existing Inter
+font. Mobile and desktop use the established black/lime/blue design. The
+original launcher icons remain in place.
+
+Web Push uses a generated VAPID public/private pair. Only the public key is in
+Firestore configuration; the private key is in Secret Manager and is bound to
+the push-delivery function. Its temporary local staging file was removed.
+The media runtime service account can sign URLs through a token-creator grant
+on its own service-account resource. There is no project-wide signing grant.
+Account cleanup is phased, resumable and protected by a lease. A blocked user
+tombstone remains present until and after Auth deletion to prevent profile
+recreation by an old token. Shared operational records retain anonymized names.
+
+Validation: 190 Flutter tests, 30 Functions unit tests, 61 security/workflow
+emulator tests and nine startup/push-worker tests passed. Static analysis and
+the release web build passed. The Functions production dependency audit reports
+zero vulnerabilities. Emulator tests exercise real handlers with isolated data;
+production probes did not create synthetic users, bookings or notifications.
+
+Physical-device notification receipt is still an acceptance check. The owned
+headless Chrome diagnostic could not obtain a push subscription because the
+browser denied registration, so it is not evidence of real-device delivery.
+On iOS/iPadOS, use a Home Screen web app; native iOS distribution additionally
+needs APNs credentials and signed-device testing. Live payments remain outside
+this release. Existing student reward rules remain 20 completions per Korean
+calendar month, one 10% coupon, 30 days from claim and platform-funded discount.

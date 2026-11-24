@@ -128,7 +128,8 @@ test('reports bind reporter uid/email to auth; private from other members', asyn
   const data={reporterId:'student',reporterEmail:'student@example.test',reportedUserId:'coach',reportedUserName:'coach',reason:'reason',detail:'details',sanctionType:'OTHER',status:'PENDING',createdAt:serverTimestamp()};
   await assertFails(setDoc(r,{...data,reporterEmail:'coach@example.test'}));
   await assertFails(setDoc(r,{...data,reporterId:'coach'}));
-  await assertSucceeds(setDoc(r,data));
+  await assertFails(setDoc(r,data));
+  await seed('reports/report',data);
   await assertFails(getDoc(r)); await assertSucceeds(getDoc(doc(db('admin'),'reports/report')));
 });
 const feed = {userId:'student',userName:'student',title:'title',description:'',storagePath:'videos/student/clip.mp4',videoUrl:'videos/student/clip.mp4',likes:0,createdAt:serverTimestamp()};
@@ -154,7 +155,8 @@ test('Storage shortform: owner create/delete; no overwrite/metadata edits; membe
   await assertSucceeds(uploadBytes(own,bytes,{contentType:'video/mp4'}));
   await assertFails(uploadBytes(own,bytes,{contentType:'video/mp4'}));
   await assertFails(updateMetadata(own,{customMetadata:{forged:'true'}}));
-  await assertSucceeds(getBytes(ref(store('coach'),'videos/student/clip.mp4')));
+  await assertFails(getBytes(ref(store('coach'),'videos/student/clip.mp4')));
+  await assertSucceeds(getBytes(own)); await assertSucceeds(getBytes(ref(store('admin'),'videos/student/clip.mp4')));
   await assertFails(deleteObject(ref(store('coach'),'videos/student/clip.mp4')));
   await assertFails(deleteObject(ref(store('admin'),'videos/student/clip.mp4')));
   await assertFails(uploadBytes(ref(store('student'),'videos/coach/forged.mp4'),bytes,{contentType:'video/mp4'}));
@@ -207,7 +209,7 @@ test('feedback Firestore metadata requires participant, author, path and eligibl
 
 const require = createRequire(import.meta.url);
 let api;
-const request = (uid,data) => ({auth:uid ? {uid,token:{email:`${uid}@example.test`}} : undefined,data});
+const request = (uid,data) => ({auth:uid ? {uid,token:{email:`${uid}@example.test`,auth_time:Math.floor(Date.now()/1000)}} : undefined,data});
 const call = async (name,uid,data) => {
   api ??= require('../functions/lib/src/index.js');
   if (['respondScheduleChange','respondLessonCompletion','resolveLessonDispute'].includes(name) && data.revision === undefined) {
@@ -217,6 +219,133 @@ const call = async (name,uid,data) => {
   }
   return api[name].run(request(uid,data));
 };
+
+test('release: blocking is private and stops new bookings and atomic chat messages',async()=>{
+  await call('setUserBlocked','student',{targetUid:'coach',blocked:true});
+  await assertSucceeds(getDoc(doc(db('student'),'user_blocks/student/members/coach')));
+  await assertFails(getDoc(doc(db('coach'),'user_blocks/student/members/coach')));
+  await assertFails(setDoc(doc(db('student'),'user_blocks/coach/members/student'),{targetUid:'student'}));
+  await assert.rejects(call('requestLesson','student',{instructorId:'coach'}),{code:'permission-denied'});
+  const d=db('coach'),batch=writeBatch(d);
+  batch.set(doc(d,'chat_rooms/coach_student/messages/blocked'),{senderId:'coach',text:'blocked',createdAt:serverTimestamp()});
+  batch.update(doc(d,'chat_rooms/coach_student'),{lastMessage:'blocked',lastMessageId:'blocked',updatedAt:serverTimestamp()});
+  await assertFails(batch.commit());
+  await call('setUserBlocked','student',{targetUid:'coach',blocked:false});
+  await call('requestLesson','student',{instructorId:'coach'});
+});
+test('release: reports bind real identities, retry once and require an administrator resolution',async()=>{
+  const data={targetType:'user',targetId:'coach',reason:'언행 문제',details:'확인 요청',requestId:'request_1'};
+  const report=await call('submitReport','student',data);
+  assert.deepEqual(await call('submitReport','student',data),report);
+  const stored=(await getDoc(doc(db('admin'),`reports/${report.reportId}`))).data();
+  assert.equal(stored.reporterUid,'student');assert.equal(stored.reportedUserName,'coach');
+  await assert.rejects(call('submitReport','student',{...data,reportedUid:'other'}),{code:'invalid-argument'});
+  await assert.rejects(call('submitReport','student',{...data,targetId:'student',requestId:'self'}),{code:'invalid-argument'});
+  await assert.rejects(call('resolveReport','student',{...report,decision:'warn',reason:'warn'}),{code:'permission-denied'});
+  const results=await Promise.allSettled(Array.from({length:2},()=>call('resolveReport','admin',{...report,decision:'warn',reason:'운영 정책 안내'})));
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  assert.equal((await getDoc(doc(db('coach'),'users/coach'))).data().warningCount,1);
+  await assertFails(updateDoc(doc(db('student'),`reports/${report.reportId}`),{status:'resolved'}));
+});
+test('release: public feed is redacted, hidden on moderation, and playback checks participation',async()=>{
+  await seed('feed_videos/review',{...feed,userId:'coach',userName:'forged',storagePath:'videos/coach/clip.mp4',videoUrl:'videos/coach/clip.mp4',createdAt:new Date(),email:'private@example.test'});
+  const community=require('../functions/lib/src/community.js');await community.projectFeed('review');
+  const pub=(await getDoc(doc(db('student'),'public_feed_videos/review'))).data();
+  assert.equal(pub.userName,'coach');assert.equal(pub.email,undefined);
+  await assertFails(getDoc(doc(db('student'),'feed_videos/review')));
+  const media=require('../functions/lib/src/media_playback.js');
+  assert.equal(await media.authorizedMediaPath('student',{kind:'feed',videoId:'review'}),'videos/coach/clip.mp4');
+  const report=await call('submitReport','student',{targetType:'feed',targetId:'review',reason:'부적절한 영상',details:'',requestId:'video_1'});
+  await call('resolveReport','admin',{...report,decision:'hide',reason:'운영 정책 위반'});
+  assert.equal((await getDoc(doc(db('student'),'public_feed_videos/review'))).exists(),false);
+  await community.projectFeed('review');
+  assert.equal((await getDoc(doc(db('student'),'public_feed_videos/review'))).exists(),false);
+  await assert.rejects(media.authorizedMediaPath('student',{kind:'feed',videoId:'review'}),{code:'permission-denied'});
+  assert.equal(await media.authorizedMediaPath('admin',{kind:'feed',videoId:'review'}),'videos/coach/clip.mp4');
+  await seed('lesson_requests/lesson/feedback_videos/private',{uploaderUid:'student',storagePath:'lesson_feedback/lesson/student/clip.mp4'});
+  await assert.rejects(media.authorizedMediaPath('other',{kind:'feedback',lessonId:'lesson',videoId:'private'}),{code:'permission-denied'});
+  assert.equal(await media.authorizedMediaPath('coach',{kind:'feedback',lessonId:'lesson',videoId:'private'}),'lesson_feedback/lesson/student/clip.mp4');
+  await seed('feed_videos/incomplete-author',{...feed,userId:'incomplete',storagePath:'videos/incomplete/clip.mp4'});
+  await assert.rejects(call('setFeedLiked','student',{videoId:'incomplete-author',liked:true}),{code:'failed-precondition'});
+});
+const nativeDevice=n=>({provider:'fcm',token:'test_registration_token_'+String(n).padStart(25,'a')});
+test('release: push registrations transfer safely, reject arbitrary URLs and remain server-private',async()=>{
+  const device=await call('registerPushDevice','student',nativeDevice(1));
+  for(const uid of ['student','coach','admin',null])await assertFails(getDoc(doc(db(uid),`push_devices/${device.deviceId}`)));
+  await call('registerPushDevice','coach',nativeDevice(1));
+  await call('unregisterPushDevice','student',device);
+  await env.withSecurityRulesDisabled(async c=>assert.equal((await getDoc(doc(c.firestore(),`push_devices/${device.deviceId}`))).data().uid,'coach'));
+  await assert.rejects(call('registerPushDevice','student',{provider:'web',subscription:{endpoint:'https://127.0.0.1/private',keys:{}}}),{code:'invalid-argument'});
+  await assert.rejects(call('registerPushDevice','suspended',nativeDevice(2)),{code:'permission-denied'});
+  for(let n=2;n<=12;n++)await call('registerPushDevice','student',nativeDevice(n));
+  await env.withSecurityRulesDisabled(async c=>assert.equal((await getDocs(query(collection(c.firestore(),'push_devices'),where('uid','==','student')))).size,10));
+  await call('setPushPreference','student',{enabled:false});
+  await env.withSecurityRulesDisabled(async c=>assert.equal((await getDocs(query(collection(c.firestore(),'push_devices'),where('uid','==','student')))).size,0));
+});
+test('release: live push is idempotent, hides previews, removes invalid devices and skips history/blocked users',async()=>{
+  const a=await call('registerPushDevice','student',nativeDevice(1));
+  const b=await call('registerPushDevice','student',nativeDevice(2));
+  await call('setPushPreference','student',{previews:false});
+  const notice={kind:'lesson',title:'레슨',body:'private preview',createdAt:new Date(),pushEligible:true,readAt:null};
+  await seed('users/student/notifications/live',notice);
+  const module=require('../functions/lib/src/push_delivery.js'),sent=[];
+  const io={web:async()=>{},fcm:async(token,payload)=>{if(token===nativeDevice(2).token)throw Object.assign(Error('expired'),{code:'messaging/registration-token-not-registered'});sent.push(payload);}};
+  await module.deliverPush('student','live',io);await module.deliverPush('student','live',io);
+  assert.equal(sent.length,1);assert.equal(sent[0].body,'새 알림이 도착했습니다.');
+  await env.withSecurityRulesDisabled(async c=>{assert.equal((await getDoc(doc(c.firestore(),`push_devices/${a.deviceId}`))).exists(),true);assert.equal((await getDoc(doc(c.firestore(),`push_devices/${b.deviceId}`))).exists(),false);});
+  await seed('users/student/notifications/history',{...notice,pushEligible:false});
+  await module.deliverPush('student','history',io);assert.equal(sent.length,1);
+  await call('setUserBlocked','student',{targetUid:'coach',blocked:true});
+  await seed('users/student/notifications/blocked',{...notice,kind:'chat',sourceUid:'coach'});
+  await module.deliverPush('student','blocked',io);assert.equal(sent.length,1);
+});
+test('release: withdrawal requires fresh reauthentication and completed responsibilities',async()=>{
+  await assert.rejects(call('requestAccountDeletion','student',{confirmation:'회원탈퇴'}),{code:'failed-precondition'});
+  await assert.rejects(call('requestAccountDeletion','admin',{confirmation:'회원탈퇴'}),{code:'failed-precondition'});
+  await assert.rejects(api.requestAccountDeletion.run({auth:{uid:'other',token:{auth_time:Math.floor(Date.now()/1000)-600}},data:{confirmation:'회원탈퇴'}}),{code:'failed-precondition'});
+  await assert.rejects(call('requestAccountDeletion','other',{confirmation:'회원탈퇴',uid:'student'}),{code:'invalid-argument'});
+  await call('requestAccountDeletion','other',{confirmation:'회원탈퇴'});
+  assert.equal((await getDoc(doc(db('other'),'users/other'))).data().accountStatus,'deleting');
+  await assertFails(setDoc(doc(db('other'),'users/other'),profile('other')));
+  await assertFails(setDoc(doc(db('student'),'account_deletions/student'),{phase:13}));
+});
+test('release: queued withdrawal removes owned data, preserves a blocked tombstone and anonymizes shared records',async()=>{
+  await seed('feed_videos/owned',{...feed,userId:'other',createdAt:new Date(),storagePath:'videos/other/clip.mp4'});
+  await seed('public_feed_videos/owned',{userId:'other'});
+  await seed('chat_rooms/other_student',{participantIds:['other','student'],studentUid:'other',coachUid:'student',studentName:'Personal Name',lastMessage:'private text',lastMessageId:'msg'});
+  await seed('chat_rooms/other_student/messages/msg',{senderId:'other',text:'private text',createdAt:new Date()});
+  await seed('users/other/notifications/old',{body:'private'});
+  await seed('user_blocks/student/members/other',{targetUid:'other',name:'Personal Name'});
+  await seed('users/student/notifications/other_old',{targetId:'other_student',body:'private text',targetName:'Personal Name'});
+  await seed('lesson_requests/old_other',{...lesson,studentUid:'other',studentName:'Personal Name',participantIds:['other','coach'],status:'completed',completedAt:new Date(Date.now()-10000)});
+  await call('requestAccountDeletion','other',{confirmation:'회원탈퇴'});
+  const cleaned=[];
+  const io={disableAuth:async uid=>cleaned.push('disabled:'+uid),deleteAuth:async uid=>{assert.equal((await getDoc(doc(db('admin'),`users/${uid}`))).data().accountStatus,'deleted');cleaned.push('auth:'+uid);},deleteFile:async p=>cleaned.push(p),deletePrefix:async p=>{cleaned.push(p);return true;}};
+  await require('../functions/lib/src/account_lifecycle.js').processAccountDeletion('other',io);
+  const user=(await getDoc(doc(db('admin'),'users/other'))).data();assert.equal(user.email,undefined);assert.equal(user.name,'탈퇴한 회원');
+  await assertFails(updateDoc(doc(db('other'),'users/other'),{accountStatus:'active',profileCompleted:true}));
+  await env.withSecurityRulesDisabled(async c=>{
+    assert.equal((await getDoc(doc(c.firestore(),'account_deletions/other'))).data().status,'done');
+    assert.equal((await getDoc(doc(c.firestore(),'feed_videos/owned'))).exists(),false);
+    assert.equal((await getDoc(doc(c.firestore(),'chat_rooms/other_student/messages/msg'))).exists(),false);
+    assert.equal((await getDoc(doc(c.firestore(),'users/other/notifications/old'))).exists(),false);
+    assert.equal((await getDoc(doc(c.firestore(),'user_blocks/student/members/other'))).exists(),false);
+  });
+  assert.equal((await getDoc(doc(db('student'),'chat_rooms/other_student'))).data().studentName,'탈퇴한 회원');
+  assert.equal((await getDoc(doc(db('student'),'users/student/notifications/other_old'))).data().targetName,'탈퇴한 회원');
+  assert.equal((await getDoc(doc(db('coach'),'lesson_requests/old_other'))).data().studentName,'탈퇴한 회원');
+  assert.ok(cleaned.includes('auth:other'));
+});
+test('release: activity counters use role-specific real completions and cannot be client inflated',async()=>{
+  await seed('lesson_requests/completed_a',{...lesson,status:'completed',completedAt:new Date(Date.now()-1000)});
+  await seed('lesson_requests/completed_b',{...lesson,studentUid:'coach',instructorUid:'other',participantIds:['coach','other'],status:'completed',completedAt:new Date(Date.now()-1000)});
+  await seed('lesson_requests/future_bad',{...lesson,status:'completed',completedAt:new Date(Date.now()-1000),scheduledEndAt:new Date(Date.now()+86400000)});
+  await call('syncMyActivity','coach',{});await call('syncMyActivity','student',{});
+  const stats=require('../functions/lib/src/activity_stats.js');await Promise.all([stats.rebuildActivity('coach',true),stats.rebuildActivity('coach',true)]);
+  const coach=(await getDoc(doc(db('coach'),'users/coach'))).data(),student=(await getDoc(doc(db('student'),'users/student'))).data();
+  assert.equal(coach.completedTeachingCount,1);assert.equal(coach.completedLearningCount,1);assert.equal(student.completedLearningCount,1);
+  await assertFails(updateDoc(doc(db('coach'),'users/coach'),{completedTeachingCount:100,activityVersion:1,updatedAt:serverTimestamp()}));
+});
 
 async function workflowSlot(coach='coach', offset=0) {
   const start=Date.now()+2*86400000+offset*3600000;
@@ -645,7 +774,7 @@ test('server deletion: owner-only, correct storage path, retry and like EXP cons
   await assert.rejects(call('deleteVideo','other',{kind:'feed',videoId:'video'}),{code:'permission-denied'});
   await assert.rejects(call('deleteVideo','admin',{kind:'feed',videoId:'video'}),{code:'permission-denied'});
   await call('deleteVideo','student',{kind:'feed',videoId:'video'});
-  assert.equal((await getDoc(doc(db('student'),'feed_videos/video'))).exists(),false);
+  assert.equal((await getDoc(doc(db('admin'),'feed_videos/video'))).exists(),false);
   assert.equal((await getDoc(doc(db('student'),'users/student'))).data().feedLikeCount,0);
   await assert.rejects(getBytes(ref(store('student'),'videos/student/clip.mp4')),{code:'storage/object-not-found'});
   await assert.rejects(call('deleteVideo','student',{kind:'feed',videoId:'video'}),{code:'not-found'});
@@ -776,15 +905,24 @@ test('original admin operation reads and all financial subcollections stay separ
   }
 });
 
-test('both original report schemas and original text limits remain supported', async () => {
+test('legacy report records remain readable by admins and server enforces original text limits', async () => {
   const d=db('student');
   const legacy={reporterUid:'student',reportedUid:'coach',reportedUserName:'coach',reason:'r'.repeat(500),details:'d'.repeat(5000),timestamp:serverTimestamp(),status:'pending'};
-  await assertSucceeds(setDoc(doc(d,'reports/legacy'),legacy));
+  await assertFails(setDoc(doc(d,'reports/legacy'),legacy));
   await assertFails(setDoc(doc(d,'reports/spoof'),{...legacy,reporterUid:'coach'}));
   const modern={reporterId:'student',reporterEmail:'student@example.test',reportedUserId:'coach',reportedUserName:'coach',reason:'r'.repeat(500),detail:'d'.repeat(5000),sanctionType:'OTHER',status:'PENDING',createdAt:serverTimestamp()};
-  await assertSucceeds(setDoc(doc(d,'reports/modern'),modern));
+  await assertFails(setDoc(doc(d,'reports/modern'),modern));
   await assertFails(setDoc(doc(d,'reports/email-spoof'),{...modern,reporterEmail:'coach@example.test'}));
   await assertFails(setDoc(doc(d,'reports/long'),{...legacy,details:'d'.repeat(5001)}));
+  await seed('reports/legacy', {...legacy, timestamp:new Date()});
+  await seed('reports/modern', {...modern, createdAt:new Date()});
+  for (const id of ['legacy','modern']) {
+    await assertSucceeds(getDoc(doc(db('admin'),`reports/${id}`)));
+    await assertFails(getDoc(doc(d,`reports/${id}`)));
+  }
+  const response=await call('submitReport','student',{targetType:'user',targetId:'coach',reason:'r'.repeat(500),details:'d'.repeat(5000),requestId:'text-boundary'});
+  assert.ok(response.reportId);
+  await assert.rejects(call('submitReport','student',{targetType:'user',targetId:'coach',reason:'r',details:'d'.repeat(5001),requestId:'too-long'}),{code:'invalid-argument'});
 });
 
 test('original 5000-character chat boundary survives preview integrity checks', async () => {

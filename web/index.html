@@ -32,6 +32,9 @@
   
   <!-- 초기 로딩 스타일 설정 -->
   <style id="splash-screen-style">
+    @font-face { font-family: Inter; src: url('assets/assets/fonts/Inter-Variable.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+    @keyframes brand-arrive { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { .loading-brand { animation: none !important; } }
     html {
       height: 100%;
     }
@@ -99,7 +102,7 @@
       font-family: system-ui, -apple-system, sans-serif; text-align: center;
     }
     #app-loading[hidden] { display: none; }
-    .loading-brand { font-size: 32px; font-weight: 700; letter-spacing: -1.5px; }
+    .loading-brand { font-family: Inter, sans-serif; font-size: 44px; font-weight: 600; letter-spacing: -2.4px; animation: brand-arrive .65s ease-out both; }
     .loading-brand span { color: #24a9ff; }
     #loading-message { color: #b9b9b9; font-size: 14px; line-height: 1.6; margin: 0; }
     #startup-retry { border: 0; border-radius: 14px; padding: 14px 24px;
@@ -116,7 +119,7 @@
       const fail = () => {
         if (ready) return;
         const message = document.getElementById('loading-message');
-        if (message) message.textContent = '화면을 불러오지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.';
+        if (message) { message.hidden = false; message.textContent = '화면을 불러오지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.'; }
         const retry = document.getElementById('startup-retry');
         if (retry) retry.hidden = false;
       };
@@ -129,7 +132,7 @@
       window.addEventListener('unhandledrejection', fail);
       return {fail, retry() {
         const url = new URL(window.location.href);
-        url.searchParams.set('appVersion', '20261123-lesson-workflow-v1');
+        url.searchParams.set('appVersion', '20261124-platform-release-v1');
         url.searchParams.set('render', 'compat');
         window.location.replace(url.toString());
       }};
@@ -138,10 +141,10 @@
 </head>
 <body>
   <div id="app-loading" role="status" aria-live="polite">
-    <div class="loading-brand">one<span>•</span>point</div>
-    <p id="loading-message">ONEPOINT를 불러오는 중이에요.</p>
+    <div class="loading-brand">one<span>p</span>oint</div>
+    <p id="loading-message" hidden></p>
     <button id="startup-retry" hidden onclick="window.onepointStartup.retry()">다시 시도</button>
   </div>
-  <script src="flutter_bootstrap.js?v=20261123-lesson-workflow-v1" async onerror="window.onepointStartup.fail()"></script>
+  <script src="flutter_bootstrap.js?v=20261124-platform-release-v1" async onerror="window.onepointStartup.fail()"></script>
 </body>
 </html>

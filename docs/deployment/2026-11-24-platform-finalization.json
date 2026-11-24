@@ -1,0 +1,507 @@
+{
+  "project": "onlyonepoint-lesson",
+  "version": "1.1.0+2",
+  "verifiedAt": "2026-11-24T08:50:07.036Z",
+  "functions": [
+    {
+      "name": "syncPaymentCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:21.174427437Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "releaseCancelledSlot",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:14.033492492Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "sendNotificationPush",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:30.604203674Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "beginAccountCleanup",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:29.007436187Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "syncMyActivity",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:11.657242547Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyChatMessage",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:14.856557608Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "completeLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.408972025Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "getMediaPlayback",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.831557210Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "validateCareerPdf",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.765374737Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLessonWithSlot",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:14.390026146Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "setFeedLiked",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.260673714Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "submitReport",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:11.901253907Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "resolveLessonDispute",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:21.925345451Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "claimMonthlyCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.871405313Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyCoachReview",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.924272810Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyFeedReaction",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:14.140558178Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "removeLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:20.864784800Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectInstructorPublicProfile",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.512830390Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "respondScheduleChange",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:21.419962075Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectPublicFeed",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:29.929706171Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "adminManageAccount",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.189295559Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "cancelLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:22.085697899Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "unregisterPushDevice",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:11.966073691Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "syncMyNotifications",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.003842207Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectPublicAvailability",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.110436093Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyLessonFeedback",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.838160809Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "registerPushDevice",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.481769288Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "saveAvailabilitySlots",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.014972547Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "applyLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.786940154Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectUserPublicProfile",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:14.138586865Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "deleteAvailabilitySlot",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.324150510Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "resolveReport",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.060339388Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "setUserBlocked",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:06.281644861Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "respondLessonCompletion",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:22.342715252Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyReportActivity",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:32.177318242Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestAccountDeletion",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.560372527Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "rescheduleLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.986826598Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "expireLessonRequests",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:21.922160982Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "refreshAuthorFeed",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:28.122547095Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "acceptLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:21.060067203Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "syncLessonActivity",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:31.217045143Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "getPushConfiguration",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:14.424553042Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "setPushPreference",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.503719506Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.846600961Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "saveAvailabilitySlot",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.092139971Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "syncLessonCoupon",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:21.422574213Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "rejectLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:21.601443086Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "deleteVideo",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.712515203Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyLessonActivity",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:13.496800918Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "retryAccountCleanup",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-24T08:45:12.970696758Z",
+      "region": "asia-northeast3"
+    }
+  ],
+  "rules": [
+    {
+      "file": "firestore.rules",
+      "ruleset": "projects/onlyonepoint-lesson/rulesets/3481e8b3-0ad9-41a9-ad63-c8704e878b8b",
+      "matchesLocalSource": true,
+      "sha256": "cae4dfb0c31c7b79d21a060ccc9bfa5fde2c377a2a26b9cde8c70ce3356789a7"
+    },
+    {
+      "file": "storage.rules",
+      "ruleset": "projects/onlyonepoint-lesson/rulesets/06b2c2f3-08c3-451e-b660-e2df3eda976c",
+      "matchesLocalSource": true,
+      "sha256": "d5e83fe657d869ab38cdaabdc75873c2da13856819a35dcd268bb2f9d79bc4bb"
+    }
+  ],
+  "schedulers": [
+    {
+      "function": "expireLessonRequests",
+      "state": "ENABLED",
+      "timeZone": "Asia/Seoul",
+      "schedule": "every 5 minutes"
+    },
+    {
+      "function": "retryAccountCleanup",
+      "state": "ENABLED",
+      "timeZone": "Asia/Seoul",
+      "schedule": "every 5 minutes"
+    }
+  ],
+  "queryChecks": [
+    {
+      "collectionGroup": "likes",
+      "field": "userId",
+      "indexState": "READY",
+      "queryAccepted": true
+    },
+    {
+      "collectionGroup": "messages",
+      "field": "senderId",
+      "indexState": "READY",
+      "queryAccepted": true
+    },
+    {
+      "collectionGroup": "feedback_videos",
+      "field": "uploaderUid",
+      "indexState": "READY",
+      "queryAccepted": true
+    },
+    {
+      "collectionGroup": "members",
+      "field": "targetUid",
+      "indexState": "READY",
+      "queryAccepted": true
+    }
+  ],
+  "authenticationProbes": [
+    {
+      "name": "setUserBlocked",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "submitReport",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "resolveReport",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "getPushConfiguration",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "unregisterPushDevice",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "registerPushDevice",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "requestAccountDeletion",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "setPushPreference",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "syncMyActivity",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "getMediaPlayback",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "setFeedLiked",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "requestLesson",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    }
+  ],
+  "validation": {
+    "flutterTests": 190,
+    "functionsUnitTests": 30,
+    "securityEmulatorTests": 61,
+    "webStartupAndPushWorkerTests": 9,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed",
+    "functionsDependencyAudit": "0 vulnerabilities",
+    "finalAuthNotificationRetest": 27
+  },
+  "push": {
+    "publicConfigurationReady": true,
+    "privateKey": "Secret Manager / WEB_PUSH_PRIVATE_KEY",
+    "secretBoundToDeliveryFunction": true,
+    "webServiceWorker": "onepoint-push-sw.js",
+    "permission": "Explicit opt-in",
+    "historicalEventsPushEligible": false,
+    "realDeviceDeliveryVerified": false,
+    "headlessDiagnostic": {
+      "checkedAt": "2026-11-24T08:33:31.588Z",
+      "destination": "owned local headless Chrome only",
+      "productionUserCreated": false,
+      "subscriptionCreated": false,
+      "transportAccepted": false,
+      "previewReceived": false,
+      "limitation": "page.evaluate: AbortError: Registration failed - permission denied"
+    }
+  },
+  "mediaSigning": {
+    "runtimeServiceAccount": "690579090089-compute@developer.gserviceaccount.com",
+    "scope": "self service-account resource only",
+    "role": "roles/iam.serviceAccountTokenCreator",
+    "iamCredentialsApiEnabled": true
+  },
+  "publicFeedBackfill": {
+    "project": "onlyonepoint-lesson",
+    "checkedAt": "2026-11-24T08:46:28.073Z",
+    "mode": "apply",
+    "existingCompositeIndexesPreserved": 0,
+    "sourceFeeds": 0,
+    "previousProjections": 0,
+    "projected": 0,
+    "removed": 0,
+    "sourceDocumentsChanged": false,
+    "privateFieldsProjected": false
+  },
+  "scope": [
+    "Review items 4–8: notification delivery, account recovery/withdrawal, moderation/blocking, media performance, activity and recommendation integrity",
+    "Existing font and Figma color palette with native onepoint startup/login wordmark"
+  ],
+  "retainedPolicies": {
+    "studentMonthlyGoal": 20,
+    "coachesReceiveCoupons": false,
+    "couponDiscountPercent": 10,
+    "couponExpiryDaysFromClaim": 30,
+    "discountFundedBy": "Platform fee; coach settlement retained"
+  },
+  "remainingAcceptance": [
+    "Physical-device notification receipt and tap behavior after browser permission",
+    "Native iOS APNs provisioning and signed app builds if native distribution is requested",
+    "Live payments remain outside this release"
+  ],
+  "verification": "Actual callable and cleanup handlers exercised against isolated emulators. Production checks use management metadata, read-only index probes and unauthenticated rejection. No synthetic production members, lessons, reports, messages or notifications were created.",
+  "clientPushIsolation": "Serialized device connections and logout; stale owner guards; cold signed-out sessions clear former browser subscriptions",
+  "sourceSha256": {
+    "functions/src/platform_index.ts": "2d514c6b972a756c62da7591022c48697d88771db3d643fe5ea3de79aa270682",
+    "functions/src/platform_access.ts": "531717708f14c687368ce949729fc37c3cb56e535c9aed32f52cd7897257bad8",
+    "functions/src/push_delivery.ts": "9730b21d519d7535d145b1c225c7817143e8c48882ae2eb3fe811dda52e4b626",
+    "functions/src/account_lifecycle.ts": "fed9caf73a5887129e3d1b985bb309b9e997540771fb93023ac827a621a83dc7",
+    "functions/src/community.ts": "463e22b6eac21b4202e666be43dc4cedb41ac42f18238a83f3fbc0d565bb22dd",
+    "functions/src/media_playback.ts": "4e30e10035da910de1063c2c7312b0dedca637da45f2862b6f58fbcaad3448f0",
+    "functions/src/activity_stats.ts": "633bebeb63c1f97736355d4602ce603de9126fe9fb62bff911efe410d9c54871",
+    "functions/src/security_workflows.ts": "314ebc482ed0f1a018d3b645632747f5ab6a31fa6ef7125ceb113a303f0cc276",
+    "functions/src/notifications.ts": "59000087dcc2bc477e8574ec682b37506116230acb7f3519ed202b87fb90b8c1",
+    "lib/services/notification_service.dart": "61571f15cec30ca8ea0e0c0805503a50b76f8a0b1e9b3c78653808a305fa12cc",
+    "lib/services/push_browser_web.dart": "a58a2112a5ed804e0c2256e9bc9914697efdbf38b751788a445ef57f1fcc70f9",
+    "lib/widgets/onepoint_logo.dart": "de9a1fd6688d6b1c11f50ef413bf0e136fab5fbbae7bac6bd5c80c9ab6e6df74",
+    "lib/screens/login_screen.dart": "66e196f3a4101ecddb8d51502e6e257d94f946c3aea7e017228b38e2e2154705",
+    "lib/screens/splash_screen.dart": "f3ad34b62228526a9451fa256af59b835e99516a41098bb18a9cc3b58dc4d871",
+    "web/onepoint-push-sw.js": "e6ee8a86ea1b1218a1507ab4f33d97b03a722eda86a4a27f510410ec67bc7cf8",
+    "firestore.rules": "cae4dfb0c31c7b79d21a060ccc9bfa5fde2c377a2a26b9cde8c70ce3356789a7",
+    "storage.rules": "d5e83fe657d869ab38cdaabdc75873c2da13856819a35dcd268bb2f9d79bc4bb",
+    "firestore.indexes.json": "2fb3742f588ebff47c7bc89bab7a816175bc22cb7ed4cbcb80cd6c3d7774ace5"
+  }
+}

@@ -124,6 +124,9 @@ class _LessonFeedbackVideosScreenState
                     VideoItemWidget(
                       key: ValueKey(videoId),
                       videoUrl: storagePath,
+                      videoId: videoId,
+                      lessonId: widget.lessonId,
+                      autoplay: false,
                       fit: BoxFit.contain,
                       isPlaying: index == _page,
                     ),

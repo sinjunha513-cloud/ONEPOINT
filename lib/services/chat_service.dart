@@ -8,6 +8,13 @@ class ChatService {
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  FirebaseFirestore get firestore => _db;
+  FirebaseAuth get auth => _auth;
+  Future<String?> otherMember(String id) async {
+    final doc = await _db.doc('chat_rooms/$id').get();
+    final ids = List<String>.from(doc.data()?['participantIds'] ?? []);
+    return ids.where((id) => id != currentUid).firstOrNull;
+  }
 
   String get currentUid {
     final uid = _auth.currentUser?.uid;
@@ -20,12 +27,15 @@ class ChatService {
       .where('participantIds', arrayContains: currentUid)
       .snapshots();
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> messages(String roomId) => _db
-      .collection('chat_rooms')
-      .doc(roomId)
-      .collection('messages')
-      .orderBy('createdAt', descending: true)
-      .snapshots();
+  Stream<QuerySnapshot<Map<String, dynamic>>> messages(String roomId,
+          {int limit = 50}) =>
+      _db
+          .collection('chat_rooms')
+          .doc(roomId)
+          .collection('messages')
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .snapshots();
 
   Future<void> sendMessage(String roomId, String text) async {
     final trimmed = text.trim();

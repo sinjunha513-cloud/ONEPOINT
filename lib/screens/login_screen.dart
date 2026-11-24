@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import 'role_selection_screen.dart';
 import 'session_gate_screen.dart';
 import '../widgets/onepoint_logo.dart';
+import 'password_reset_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.service, this.homeBuilder});
@@ -172,167 +173,175 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: OnepointDesign.background,
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Center(child: OnepointLogo()),
-                const SizedBox(height: 16),
-                const Text(
-                  '나만의 스포츠 멘토를 만나보세요',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white54,
-                  ),
-                ),
-                const SizedBox(height: 48),
+          child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Center(child: OnepointLogo(width: 216)),
+                    const SizedBox(height: 48),
 
-                // 이메일 입력
-                TextField(
-                  key: const ValueKey('login-email'),
-                  enabled: !_isLoading,
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _passwordFocus.requestFocus(),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: '이메일',
-                    hintStyle: const TextStyle(color: Colors.white30),
-                    filled: true,
-                    fillColor: OnepointDesign.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    prefixIcon:
-                        const Icon(Icons.email_outlined, color: Colors.white54),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 비밀번호 입력
-                TextField(
-                  key: const ValueKey('login-password'),
-                  enabled: !_isLoading,
-                  controller: _passwordController,
-                  focusNode: _passwordFocus,
-                  textInputAction: TextInputAction.go,
-                  onSubmitted: (_) => _handleLogin(),
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: '비밀번호',
-                    hintStyle: const TextStyle(color: Colors.white30),
-                    filled: true,
-                    fillColor: OnepointDesign.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    prefixIcon:
-                        const Icon(Icons.lock_outline, color: Colors.white54),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // 로그인 버튼
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: OnepointDesign.lime,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    // 이메일 입력
+                    TextField(
+                      key: const ValueKey('login-email'),
+                      enabled: !_isLoading,
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => _passwordFocus.requestFocus(),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: '이메일',
+                        hintStyle: const TextStyle(color: Colors.white30),
+                        filled: true,
+                        fillColor: OnepointDesign.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        prefixIcon: const Icon(Icons.email_outlined,
+                            color: Colors.white54),
                       ),
                     ),
-                    child: _isLoading && !_isGoogleLoading
-                        ? const CircularProgressIndicator(color: Colors.black)
-                        : const Text(
-                            '로그인',
+                    const SizedBox(height: 16),
+
+                    // 비밀번호 입력
+                    TextField(
+                      key: const ValueKey('login-password'),
+                      enabled: !_isLoading,
+                      controller: _passwordController,
+                      focusNode: _passwordFocus,
+                      textInputAction: TextInputAction.go,
+                      onSubmitted: (_) => _handleLogin(),
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: '비밀번호',
+                        hintStyle: const TextStyle(color: Colors.white30),
+                        filled: true,
+                        fillColor: OnepointDesign.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: Colors.white54),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // 로그인 버튼
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: OnepointDesign.lime,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading && !_isGoogleLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.black)
+                            : const Text(
+                                '로그인',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                    Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => PasswordResetScreen(
+                                          service: _service,
+                                          initialEmail:
+                                              _emailController.text.trim()))),
+                          child: const Text('비밀번호를 잊으셨나요?'),
+                        )),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider(color: Colors.white12)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text('또는',
+                              style: TextStyle(color: Colors.white38)),
+                        ),
+                        Expanded(child: Divider(color: Colors.white12)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('google-login'),
+                        onPressed: _isLoading ? null : _handleGoogleLogin,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: OnepointDesign.surface,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: OnepointDesign.surface,
+                          disabledForegroundColor: Colors.white38,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: _isGoogleLoading
+                            ? const SizedBox.square(
+                                dimension: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.login_rounded, size: 20),
+                        label: Text(
+                            _isGoogleLoading ? '구글 로그인 중…' : 'Google로 계속하기'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 추가된 기능: 회원가입 버튼 클릭 시 역할 선택 화면으로 이동
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text(
+                          '아직 계정이 없으신가요?',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                        TextButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RoleSelectionScreen(),
+                                    ),
+                                  );
+                                },
+                          child: const Text(
+                            '회원가입',
                             style: TextStyle(
-                              fontSize: 16,
+                              color: OnepointDesign.blue,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.white12)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child:
-                          Text('또는', style: TextStyle(color: Colors.white38)),
-                    ),
-                    Expanded(child: Divider(color: Colors.white12)),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 52,
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('google-login'),
-                    onPressed: _isLoading ? null : _handleGoogleLogin,
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: OnepointDesign.surface,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: OnepointDesign.surface,
-                      disabledForegroundColor: Colors.white38,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: _isGoogleLoading
-                        ? const SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.login_rounded, size: 20),
-                    label:
-                        Text(_isGoogleLoading ? '구글 로그인 중…' : 'Google로 계속하기'),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // 추가된 기능: 회원가입 버튼 클릭 시 역할 선택 화면으로 이동
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Text(
-                      '아직 계정이 없으신가요?',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                    TextButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const RoleSelectionScreen(),
-                                ),
-                              );
-                            },
-                      child: const Text(
-                        '회원가입',
-                        style: TextStyle(
-                          color: OnepointDesign.blue,
-                          fontWeight: FontWeight.w600,
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              )),
         ),
       ),
     );

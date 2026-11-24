@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/session_entrance.dart';
 import '../widgets/logout_confirmation.dart';
 import 'login_screen.dart';
@@ -181,6 +182,14 @@ class _SessionGateScreenState extends State<SessionGateScreen> {
             null =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
           };
+          if (snapshot.data == _Destination.home && _lastUid != null) {
+            final uid = _lastUid!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _lastUid == uid) {
+                NotificationService.sessionReady(uid);
+              }
+            });
+          }
           if (snapshot.data == _Destination.home ||
               snapshot.data == _Destination.profile ||
               snapshot.data == _Destination.coachApplication) {

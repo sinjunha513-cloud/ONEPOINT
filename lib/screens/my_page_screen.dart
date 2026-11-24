@@ -22,6 +22,8 @@ import 'payment_history_screen.dart';
 import 'signature_badge_catalog_screen.dart';
 import 'signup_screen.dart';
 import 'coupon_wallet_screen.dart';
+import 'account_settings_screen.dart';
+import '../services/activity_service.dart';
 import '../services/coupon_service.dart';
 import '../widgets/monthly_lesson_goal_card.dart';
 
@@ -50,6 +52,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
   late final _lessons = MatchingService(firestore: _db, auth: _auth).lessons();
   late final _coupons = CouponService(firestore: _db, auth: _auth);
   bool _signingOut = false;
+  @override
+  void initState() {
+    super.initState();
+    if (_user != null) {
+      ActivityService().sync(_user!.uid).catchError((Object _) {});
+    }
+  }
 
   void _open(Widget screen) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -134,7 +143,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
               '';
           final target = data['targetTier'] as String? ?? '목표 미설정';
           final tier = TierCalculator.calculateTierInfo(
-            lessonCount: (data['lessonCount'] as num?)?.toInt() ?? 0,
+            lessonCount: role == 'coach'
+                ? (data['completedTeachingCount'] as num?)?.toInt() ?? 0
+                : (data['completedLearningCount'] as num?)?.toInt() ??
+                    (data['lessonCount'] as num?)?.toInt() ??
+                    0,
             reviewScores: (data['reviewScores'] as List<dynamic>? ?? [])
                 .whereType<num>()
                 .map((n) => n.toDouble())
@@ -210,6 +223,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
                                       right: true)),
                             ]),
                         const SizedBox(height: 20),
+                        const Text(
+                            '완료 레슨 1회 = 20 EXP · 활동 기록이며 실력 등급을 의미하지 않아요.',
+                            style: TextStyle(
+                                color: OnepointDesign.muted,
+                                fontSize: 11,
+                                height: 1.5)),
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                             stream: _lessons,
                             builder: (context, lessons) =>
@@ -561,6 +580,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
               style:
                   const TextStyle(color: OnepointDesign.muted, fontSize: 12)),
           children: [
+            _action(
+                '계정 설정',
+                Icons.settings_outlined,
+                () => _open(AccountSettingsScreen(
+                    service: widget.sessionService ??
+                        AuthService(auth: _auth, firestore: _db),
+                    role: role))),
             _action(
                 '프로필 및 정보 수정하기', Icons.edit_outlined, () => _editProfile(data)),
             if (role == 'student')

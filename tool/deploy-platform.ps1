@@ -19,7 +19,7 @@ try {
   New-Item -ItemType Directory -Force -Path "$stage/functions" | Out-Null
   Copy-Item -LiteralPath 'functions/lib', 'functions/src' -Destination "$stage/functions" -Recurse -Force
   Copy-Item -LiteralPath 'functions/package.json', 'functions/package-lock.json', 'functions/tsconfig.json' -Destination "$stage/functions" -Force
-  Copy-Item -LiteralPath 'firestore.rules', 'storage.rules' -Destination $stage -Force
+  Copy-Item -LiteralPath 'firestore.rules', 'firestore.indexes.json', 'storage.rules' -Destination $stage -Force
   if (-not (Test-Path -LiteralPath "$stage/functions/node_modules")) {
     New-Item -ItemType Junction -Path "$stage/functions/node_modules" -Target (Join-Path $workspaceRoot 'functions/node_modules') | Out-Null
   }
@@ -30,14 +30,16 @@ try {
   [IO.File]::WriteAllText($packagePath, ($package | ConvertTo-Json -Depth 30), $encoding)
   [IO.File]::WriteAllText((Join-Path $stage 'functions/.env.onlyonepoint-lesson'), "PLATFORM_FEE_BPS=$PlatformFeeBps`n", $encoding)
   $configuration = @{
-    firestore = @{ rules = 'firestore.rules' }
+    firestore = @{ rules = 'firestore.rules'; indexes='firestore.indexes.json' }
     storage = @{ rules = 'storage.rules' }
     functions = @{ source = 'functions'; codebase = 'default'; ignore = @('node_modules', '.git', '*.log') }
   }
   [IO.File]::WriteAllText((Join-Path $stage 'firebase.json'), ($configuration | ConvertTo-Json -Depth 10), $encoding)
   $functionTargets = & node -e "process.stdout.write(Object.keys(require('./functions/lib/src/platform_index.js')).map(n=>'functions:'+n).join(','))"
   if ($LASTEXITCODE -ne 0 -or -not $functionTargets) { throw 'Could not determine platform functions.' }
-  & './security-tests/node_modules/.bin/firebase.cmd' deploy --config "$stage/firebase.json" --project onlyonepoint-lesson --only "firestore:rules,storage,$functionTargets" --non-interactive
+  # Explicit targets retain unrelated functions. --force acknowledges retries
+  # for idempotent push/report delivery and resumable account-cleanup handlers.
+  & './security-tests/node_modules/.bin/firebase.cmd' deploy --config "$stage/firebase.json" --project onlyonepoint-lesson --only "firestore:rules,firestore:indexes,storage,$functionTargets" --non-interactive --force
   if ($LASTEXITCODE -ne 0) { throw 'Platform deployment failed.' }
 } finally {
   $env:DEBUG = $priorDebug

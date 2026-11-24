@@ -47,6 +47,10 @@ service cloud.firestore {
     function participant(data) {
       return signedIn() && request.auth.uid in data.participantIds;
     }
+    function blocked(a,b) {
+      return exists(/databases/$(database)/documents/user_blocks/$(a)/members/$(b))
+        || exists(/databases/$(database)/documents/user_blocks/$(b)/members/$(a));
+    }
     function profileFields(data) {
       return shortText(data.name, 100)
         && shortText(data.get('profileImage', ''), 800000)
@@ -429,6 +433,8 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if participant(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data);
         allow create: if participant(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data)
+          && !blocked(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.studentUid,
+                      get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.coachUid)
           && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
           && request.resource.data.senderId == request.auth.uid
           && nonempty(request.resource.data.text, 5000) && request.resource.data.createdAt == request.time
@@ -439,7 +445,7 @@ service cloud.firestore {
     }
 
     match /feed_videos/{videoId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (own(resource.data.userId) || admin());
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && videoUploadsEnabled()
@@ -470,28 +476,26 @@ service cloud.firestore {
           return signedIn() && own(uid) && video.userId != uid && after.likes == nonnegative(video.get('likes', 0) + delta);
         }
         allow create: if changedVideo(1)
+          && user(get(/databases/$(database)/documents/feed_videos/$(videoId)).data.userId).get('profileCompleted', false) == true
+          && user(get(/databases/$(database)/documents/feed_videos/$(videoId)).data.userId).get('accountStatus', 'active') == 'active'
+          && !blocked(request.auth.uid,get(/databases/$(database)/documents/feed_videos/$(videoId)).data.userId)
+          && get(/databases/$(database)/documents/feed_videos/$(videoId)).data.get('moderationStatus','public') != 'hidden'
           && request.resource.data.keys().hasOnly(['userId', 'createdAt'])
           && request.resource.data.userId == uid && request.resource.data.createdAt == request.time;
         allow delete: if changedVideo(-1);
       }
     }
 
-    match /reports/{reportId} {
-      allow read: if admin();
-      allow create: if signedIn() && (
-        (request.resource.data.keys().hasOnly(['reporterUid', 'reportedUid', 'reportedUserName', 'reason', 'details', 'timestamp', 'status'])
-          && request.resource.data.reporterUid == request.auth.uid && request.resource.data.status == 'pending'
-          && nonempty(request.resource.data.reportedUid, 128) && shortText(request.resource.data.details, 5000)
-          && request.resource.data.timestamp == request.time)
-        || (request.resource.data.keys().hasOnly(['reporterId', 'reporterEmail', 'reportedUserId', 'reportedUserName', 'reason', 'detail', 'sanctionType', 'status', 'createdAt'])
-          && request.resource.data.reporterId == request.auth.uid
-          && request.resource.data.reporterEmail == request.auth.token.get('email', '')
-          && request.resource.data.status == 'PENDING'
-          && nonempty(request.resource.data.reportedUserId, 128) && shortText(request.resource.data.detail, 5000)
-          && request.resource.data.createdAt == request.time))
-        && nonempty(request.resource.data.reason, 500) && shortText(request.resource.data.reportedUserName, 100);
-    }
+    match /reports/{reportId} { allow read: if admin(); allow write: if false; }
+
     // Server projections never include email, consent, PDF references or reviewer identities.
+    match /public_feed_videos/{id} { allow read: if signedIn(); allow write: if false; }
+    match /user_blocks/{uid}/members/{target} { allow read: if own(uid); allow write: if false; }
+    match /reports/{id}/history/{entry} { allow read: if admin(); allow write: if false; }
+    match /push_devices/{id} { allow read, write: if false; }
+    match /push_deliveries/{id} { allow read, write: if false; }
+    match /account_deletions/{id} { allow read, write: if false; }
+    match /community_rate_limits/{id} { allow read, write: if false; }
     match /public_users/{uid} { allow read: if signedIn(); allow write: if false; }
     match /public_instructors/{uid} { allow read: if signedIn(); allow write: if false; }
     match /instructors/{uid}/public_availability/{slotId} { allow read: if signedIn(); allow write: if false; }

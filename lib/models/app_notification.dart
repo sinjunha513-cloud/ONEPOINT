@@ -16,8 +16,8 @@ class AppNotification {
   final DateTime? readAt;
   bool get unread => readAt == null;
   factory AppNotification.fromDocument(
-      QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final d = doc.data();
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data() ?? <String, dynamic>{};
     String text(String key) => d[key] is String ? d[key] as String : '';
     return AppNotification(
         id: doc.id,

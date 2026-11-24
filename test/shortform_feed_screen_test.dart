@@ -12,7 +12,7 @@ void main() {
     '숏폼은 작은 9:16 카드로 표시되고 위아래로 넘길 수 있다',
     (tester) async {
       final firestore = FakeFirebaseFirestore();
-      await firestore.collection('feed_videos').doc('mine').set({
+      await firestore.collection('public_feed_videos').doc('mine').set({
         'userId': 'owner',
         'userName': '내 계정',
         'title': '첫 영상',
@@ -22,7 +22,7 @@ void main() {
         'likes': 0,
         'createdAt': Timestamp.fromDate(DateTime.utc(2026, 11, 11, 2)),
       });
-      await firestore.collection('feed_videos').doc('other').set({
+      await firestore.collection('public_feed_videos').doc('other').set({
         'userId': 'other',
         'userName': '다른 사용자',
         'title': '두 번째 영상',
@@ -50,7 +50,7 @@ void main() {
           ),
         ),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       final pageView = tester.widget<PageView>(find.byType(PageView));
       expect(pageView.scrollDirection, Axis.vertical);
@@ -79,4 +79,44 @@ void main() {
       expect(otherPlayer.fit, BoxFit.contain);
     },
   );
+  testWidgets(
+      'feed uses cursor pages, filters blocked authors and fits small screens with large text',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 568));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final db = FakeFirebaseFirestore();
+    for (var i = 0; i < 21; i++) {
+      await db.collection('public_feed_videos').doc('video-$i').set({
+        'userId': i == 0 ? 'blocked' : 'other',
+        'userName': '코치',
+        'title': '레슨 영상',
+        'description': '완료한 수업 영상을 확인하세요.',
+        'videoUrl': '',
+        'likes': 0,
+        'createdAt': Timestamp.fromMillisecondsSinceEpoch(21000 - i * 1000),
+      });
+    }
+    await db.doc('user_blocks/owner/members/blocked').set({'name': '차단된 회원'});
+    final service = FeedService(
+        firestore: db,
+        auth:
+            MockFirebaseAuth(mockUser: MockUser(uid: 'owner'), signedIn: true));
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData.dark(),
+      builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(1.6)),
+          child: child!),
+      home: ShortformFeedScreen(
+          isActive: false, firestore: db, feedService: service),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shortform-card-video-0')), findsNothing);
+    expect(find.text('1 / 19'), findsOneWidget);
+    expect(find.text('영상 더 보기'), findsOneWidget);
+    await tester.tap(find.text('영상 더 보기'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 / 20'), findsOneWidget);
+    expect(find.text('영상 더 보기'), findsNothing);
+  });
 }

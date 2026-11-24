@@ -14,10 +14,13 @@ import 'chat_room_screen.dart';
 import 'my_page_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'shortform_feed_screen.dart';
+import 'notification_settings_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key, this.service});
+  const NotificationsScreen(
+      {super.key, this.service, this.initialNotificationId});
   final NotificationInboxService? service;
+  final String? initialNotificationId;
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
@@ -34,6 +37,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     _stream = _service.watch(limit: _limit);
     _sync();
+    if (widget.initialNotificationId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openInitial());
+    }
+  }
+
+  Future<void> _openInitial() async {
+    try {
+      final doc = await _service.firestore
+          .collection('users')
+          .doc(_service.currentUid)
+          .collection('notifications')
+          .doc(widget.initialNotificationId)
+          .get();
+      if (doc.exists && mounted) await _open(AppNotification.fromDocument(doc));
+    } catch (_) {/* A notice removed by account cleanup no longer opens. */}
   }
 
   Future<void> _sync() async {
@@ -124,6 +142,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'payment' => '결제',
         'coach' => '코치 등록',
         'feed' => '영상 피드',
+        'system' => '안내',
         _ => '내 레슨'
       };
   String _asset(String kind) => switch (kind) {
@@ -197,6 +216,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('알림'), actions: [
+        IconButton(
+            tooltip: '알림 설정',
+            icon: const Icon(Icons.tune_rounded),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const NotificationSettingsScreen()))),
         TextButton(
             onPressed: _marking ? null : _allRead,
             child: Text(_marking ? '저장 중…' : '모두 읽음')),

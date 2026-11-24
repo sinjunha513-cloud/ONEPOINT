@@ -59,6 +59,7 @@ export const adminManageAccount = onCall({region: "asia-northeast3", timeoutSeco
         const batch = db.batch();
         batch.set(ref, {uid, role: target.role, accountStatus: "deleted", profileCompleted: false, deletedAt: FieldValue.serverTimestamp(), deletedBy: request.auth.uid});
         batch.delete(instructorRef); batch.update(operation, {state: "completed", updatedAt: FieldValue.serverTimestamp()});
+        batch.set(db.collection('account_deletions').doc(uid),{uid,role:target.role,status:'pending',phase:0,createdAt:FieldValue.serverTimestamp(),requestedBy:request.auth.uid});
         await batch.commit();
         // Financial/lesson/chat evidence is retained; only profile PDFs are removed.
         try { await getStorage().bucket().deleteFiles({prefix: `coach_documents/${uid}/`}); await db.recursiveDelete(db.collection("coach_document_uploads").doc(uid)); }

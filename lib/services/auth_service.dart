@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'notification_service.dart';
 
 class AuthService {
   AuthService({
@@ -28,6 +29,40 @@ class AuthService {
   FirebaseFirestore get firestore => _firestore;
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
+
+  Future<void> resetPassword(String email) async {
+    final value = email.trim();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)) {
+      throw ArgumentError('이메일 주소를 확인해 주세요.');
+    }
+    await _auth.setLanguageCode('ko');
+    try {
+      await _auth.sendPasswordResetEmail(email: value);
+    } on FirebaseAuthException catch (e) {
+      // The same result avoids exposing whether someone else has an account.
+      if (e.code != 'user-not-found') rethrow;
+    }
+  }
+
+  Future<void> reauthenticateForAccountChange(String password) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('로그인이 필요합니다.');
+    if (user.providerData.any((p) => p.providerId == 'password')) {
+      await user.reauthenticateWithCredential(
+          EmailAuthProvider.credential(email: user.email!, password: password));
+    } else if (_isWeb) {
+      await user.reauthenticateWithPopup(GoogleAuthProvider()
+        ..setCustomParameters({'prompt': 'select_account'}));
+    } else {
+      final account = await (_googleSignIn ??= GoogleSignIn()).signIn();
+      if (account == null) throw StateError('본인 확인을 취소했습니다.');
+      final tokens = await account.authentication;
+      await user.reauthenticateWithCredential(GoogleAuthProvider.credential(
+          accessToken: tokens.accessToken, idToken: tokens.idToken));
+    }
+    _requireSameSession(user.uid);
+    await user.getIdToken(true);
+  }
 
   Future<User?> signInWithEmailAndPassword({
     required String email,
@@ -197,6 +232,12 @@ class AuthService {
       .map((doc) => doc.data()?['accountStatus'] as String? ?? 'active');
 
   Future<void> signOut() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await NotificationService.detach(uid);
+      } catch (_) {}
+    }
     await _auth.signOut();
     if (!_isWeb) {
       // Logout can be invoked by a new service instance after app restoration.
