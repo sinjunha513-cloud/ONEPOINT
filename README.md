@@ -7,7 +7,7 @@
 >
 > 현재 UI와 주요 기능을 지속적으로 개발·개선하고 있으며, 변경 사항을 수시로 반영하고 있습니다.
 >
-> **최근 업데이트 (2026-11-20):** 원본 ONEPOINT 앱 아이콘 복원 및 홈·마이페이지의 월 20회 목표와 퍼센트 표시 개선. 수강생은 수강 완료, 코치는 진행 완료 횟수로 월간 진행률을 확인합니다. 10% 할인권은 수강생 전용이며, 받은 날부터 30일간 유효합니다. 할인액은 플랫폼 수수료에서 부담합니다.
+> **최근 업데이트 (2026-11-24):** 레슨 예약·일정 변경·완료 확인을 개선했습니다. 같은 코치와 여러 날짜를 예약할 수 있으며, 수강생과 코치의 겹치는 레슨은 서버에서 차단합니다. 일정 변경은 상대방 승인 후 확정되고, 완료 실적은 수업 종료 후 코치 요청과 수강생 참여 확인을 거쳐 반영합니다.
 >
 > [모바일·PC 웹에서 최신 버전 확인하기](https://onlyonepoint-lesson.web.app)
 
@@ -63,6 +63,15 @@ A preview of the current ONEPOINT development interface. Screenshots illustrate 
 Browse sports video content in the feed.
 
 ## Key features
+
+### Lesson workflow (2026-11-23)
+
+- **Booking:** multiple dates with the same coach; overlap checks for both participants, including when a coach takes another coach's lesson. Unscheduled duplicate applications to the same coach remain blocked until a date is agreed.
+- **Response deadline:** ordinary pending applications expire at the earlier of 24 hours after application or lesson start. A scheduled job checks every five minutes; booking/acceptance also checks expiry immediately.
+- **Date changes:** the original booking stays in place while the proposed slot is held for up to 24 hours (or its start/application deadline). Only the counterparty can approve or reject; the requester can withdraw. Approval swaps slots atomically; rejection, withdrawal or expiry releases the hold.
+- **Cancellation:** either participant can cancel an ordinary accepted lesson before it starts, with a required reason. Pending applications can be withdrawn. Cancellation releases only the slots still linked to that lesson.
+- **Completion:** after the agreed end time, the coach submits attendance and evaluation; only student confirmation finalizes the lesson and awards its progress once. Students can dispute attendance, including a no-show without a coach submission. Administrators can record a reason to confirm supported attendance, reopen discussion or cancel without awards. A coach cannot overwrite an unresolved dispute.
+- **Integrity:** callable-only state changes, participant calendar locks, revision checks for stale responses and participant/admin-readable workflow history. Existing payment workflows are excluded from these ordinary-lesson changes.
 
 | Area | Capabilities represented in the codebase |
 | --- | --- |

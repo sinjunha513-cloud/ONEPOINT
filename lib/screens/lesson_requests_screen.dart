@@ -17,6 +17,7 @@ import 'lesson_feedback_videos_screen.dart';
 import 'lesson_slot_picker_screen.dart';
 import '../widgets/onepoint_icon.dart';
 import '../widgets/onepoint_lesson_icon.dart';
+import '../widgets/lesson_workflow_panel.dart';
 
 class LessonRequestsScreen extends StatefulWidget {
   final MatchingService? service;
@@ -69,7 +70,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
     await _runAction(
       lessonId,
       () => _availability.rescheduleLesson(lessonId, slot.id),
-      successMessage: '레슨 날짜를 변경했습니다. 상대방의 내 레슨에도 즉시 표시됩니다.',
+      successMessage: '날짜 변경 요청을 보냈습니다. 상대방이 승인하면 확정됩니다.',
     );
   }
 
@@ -175,6 +176,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
         builder: (context) => _LessonReviewDialog(
           studentName: studentName,
           signatureMove: currentSignature,
+          paidLesson: paidLesson,
         ),
       );
       if (review == null || !mounted) return;
@@ -191,7 +193,10 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('출석을 인증하고 ${review.signatureMove} 뱃지를 지급했습니다.')),
+        SnackBar(
+            content: Text(paidLesson
+                ? '레슨 완료를 처리했습니다.'
+                : '수강생에게 참여 확인을 요청했습니다. 확인 후 뱃지와 EXP가 반영됩니다.')),
       );
     });
   }
@@ -203,6 +208,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
         'confirmed' => '예약 확정',
         'rejected' => '거절됨',
         'cancelled' => '취소됨',
+        'expired' => '응답 기한 만료',
         _ => '상태 확인 필요',
       };
 
@@ -343,6 +349,8 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
     final scheduleRevision = (data['scheduleRevision'] as num?)?.toInt() ?? 0;
     final canReschedule = (isInstructor || isStudent) &&
         const ['pending', 'accepted', 'confirmed'].contains(status) &&
+        data['scheduleProposal']?['status'] != 'pending' &&
+        data['completionReview']?['status'] != 'pending' &&
         instructorUid.isNotEmpty;
     final canChat = (isInstructor || isStudent) &&
         const ['accepted', 'confirmed', 'completed'].contains(status) &&
@@ -523,6 +531,13 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
+            LessonWorkflowPanel(
+                lessonId: lesson.id,
+                data: data,
+                service: _service,
+                busy: busy,
+                run: (action, message) =>
+                    _runAction(lesson.id, action, successMessage: message)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -566,6 +581,28 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                             ),
                     child: const Text('신청 취소'),
                   ),
+                if (status == 'accepted' &&
+                    data['price'] == null &&
+                    data['paymentRequired'] != true &&
+                    (isStudent || isInstructor) &&
+                    (timestampDate(scheduledStartAt)
+                            ?.isAfter(DateTime.now().toUtc()) ??
+                        true))
+                  OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              final reason =
+                                  await askLessonReason(context, '레슨 취소 사유');
+                              if (reason != null) {
+                                await _runAction(
+                                    lesson.id,
+                                    () => _service.cancelLesson(lesson.id,
+                                        reason: reason),
+                                    successMessage: '레슨을 취소했습니다.');
+                              }
+                            },
+                      child: const Text('레슨 취소')),
                 if (status == 'accepted' &&
                     isStudent &&
                     data['price'] is num &&
@@ -655,14 +692,22 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                         (status == 'accepted' &&
                             data['price'] == null &&
                             data['paymentRequired'] != true)) &&
-                    isInstructor)
+                    isInstructor &&
+                    (status == 'confirmed' ||
+                        (timestampDate(scheduledEndAt) != null &&
+                            !timestampDate(scheduledEndAt)!
+                                .isAfter(DateTime.now().toUtc()))) &&
+                    !const ['pending', 'disputed']
+                        .contains(data['completionReview']?['status']) &&
+                    data['scheduleProposal']?['status'] != 'pending')
                   FilledButton(
                     onPressed: busy
                         ? null
                         : () => _completeLesson(
                             lesson.id, studentName, signatureMove,
                             paidLesson: status == 'confirmed'),
-                    child: const Text('레슨 완료 및 평가'),
+                    child:
+                        Text(status == 'confirmed' ? '레슨 완료 및 평가' : '완료 확인 요청'),
                   ),
                 if (canChat)
                   TextButton.icon(
@@ -829,10 +874,12 @@ class _LessonReview {
 class _LessonReviewDialog extends StatefulWidget {
   final String studentName;
   final String signatureMove;
+  final bool paidLesson;
 
   const _LessonReviewDialog({
     required this.studentName,
     required this.signatureMove,
+    this.paidLesson = false,
   });
 
   @override
@@ -866,7 +913,7 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
       surfaceTintColor: Colors.transparent,
       titleTextStyle: const TextStyle(
           color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
-      title: const Text('레슨 완료 및 평가'),
+      title: Text(widget.paidLesson ? '레슨 완료 및 평가' : '레슨 완료 확인 요청'),
       content: SizedBox(
         width: 520,
         child: SingleChildScrollView(
@@ -883,7 +930,7 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${widget.studentName} 수강생의 레슨 참여를 확인하고 평가해 주세요.\n출석 인증 시 시그니처 뱃지가 지급되고 EXP가 반영됩니다.',
+                    '${widget.studentName} 수강생의 레슨 참여를 확인하고 평가해 주세요.\n${widget.paidLesson ? '출석 인증 시 시그니처 뱃지가 지급되고 EXP가 반영됩니다.' : '요청 후 수강생이 참여를 확인하면 뱃지와 EXP가 반영됩니다.'}',
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -986,7 +1033,7 @@ class _LessonReviewDialogState extends State<_LessonReviewDialog> {
                   _signatureController.text.trim()),
             );
           },
-          child: const Text('평가하고 완료'),
+          child: Text(widget.paidLesson ? '평가하고 완료' : '평가하고 확인 요청'),
         ),
       ],
     );

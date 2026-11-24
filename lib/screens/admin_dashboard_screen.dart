@@ -7,6 +7,7 @@ import 'admin_member_detail_screen.dart';
 import 'payment_history_screen.dart';
 import '../services/admin_account_service.dart';
 import '../services/career_pdf_service.dart';
+import 'lesson_disputes_panel.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key, this.auth, this.firestore});
@@ -30,7 +31,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -93,6 +94,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         ],
         iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
+          isScrollable: true,
           controller: _tabController,
           indicatorColor: const Color(0xFF38BDF8),
           labelColor: const Color(0xFF38BDF8),
@@ -102,6 +104,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Tab(text: '대시보드 개요'),
             Tab(text: '코치 승인 요청'),
             Tab(text: '회원 관리'),
+            Tab(text: '레슨 이의 제기'),
           ],
         ),
       ),
@@ -111,6 +114,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _buildOverviewTab(),
           _buildCoachApprovalTab(),
           _buildUserManagementTab(),
+          LessonDisputesPanel(firestore: _db, auth: _auth),
         ],
       ),
     );

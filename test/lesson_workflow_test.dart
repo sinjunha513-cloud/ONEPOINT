@@ -75,54 +75,46 @@ void main() {
     }
   });
   test(
-      'assigned coach accepts atomically with a chat room; retry preserves summary',
+      'lifecycle actions delegate to trusted callables without local state writes',
       () async {
-    final coach = MatchingService(firestore: db, auth: auth('coach'));
-    for (final uid in ['student', 'other']) {
-      await expectLater(
-          MatchingService(firestore: db, auth: auth(uid))
-              .acceptLesson('lesson'),
-          throwsStateError);
-    }
-    await coach.acceptLesson('lesson');
-    final room = db.collection('chat_rooms').doc('coach_student');
-    await room.update({'lastMessage': 'hello', 'lastMessageId': 'msg'});
-    await coach.acceptLesson('lesson');
-    expect((await room.get()).data()!['lastMessage'], 'hello');
+    final calls = <String>[];
+    final service = MatchingService(
+        firestore: db,
+        auth: auth('coach'),
+        functions: FakeFunctions((name, data) async {
+          calls.add(name);
+          expect(data['lessonId'], 'lesson');
+          if (name == 'cancelLesson') expect(data['reason'], '일정 변경');
+          if (name.startsWith('respond') || name == 'resolveLessonDispute') {
+            expect(data['revision'], 3);
+          }
+          return {'lessonId': 'lesson'};
+        }));
+    await service.acceptLesson('lesson');
+    await service.rejectLesson('lesson');
+    await service.cancelLesson('lesson', reason: '일정 변경');
+    await service.respondSchedule('lesson', 'approve', revision: 3);
+    await service.respondCompletion('lesson', 'confirm', revision: 3);
+    await service.respondCompletion('lesson', 'dispute',
+        reason: '미진행', revision: 3);
+    await service.resolveDispute('lesson', 'reopen', '재협의', revision: 3);
+    expect(calls, [
+      'acceptLesson',
+      'rejectLesson',
+      'cancelLesson',
+      'respondScheduleChange',
+      'respondLessonCompletion',
+      'respondLessonCompletion',
+      'resolveLessonDispute'
+    ]);
+    expect((await db.doc('lesson_requests/lesson').get()).data()!['status'],
+        'pending');
     expect(
-        (await db.collection('lesson_requests').doc('lesson').get())
-            .data()!['status'],
-        'accepted');
+        (await db.doc('users/student').get())
+            .data()!
+            .containsKey('lessonCount'),
+        isFalse);
   });
-  for (final status in ['cancelled', 'rejected']) {
-    test('$status releases the active request without awarding progress',
-        () async {
-      final service = MatchingService(
-          firestore: db,
-          auth: auth(status == 'cancelled' ? 'student' : 'coach'));
-      if (status == 'cancelled') {
-        await service.cancelLesson('lesson');
-      } else {
-        await service.rejectLesson('lesson');
-      }
-      expect(
-          (await db
-                  .collection('active_lesson_requests')
-                  .doc('coach_student')
-                  .get())
-              .exists,
-          isFalse);
-      expect(
-          (await db.collection('lesson_requests').doc('lesson').get())
-              .data()!['status'],
-          status);
-      expect(
-          (await db.collection('users').doc('student').get())
-              .data()!
-              .containsKey('lessonCount'),
-          isFalse);
-    });
-  }
   test(
       'completion calls trusted backend and propagates errors without local awards',
       () async {
@@ -209,8 +201,11 @@ void main() {
     expect(await service.currentSignatureMove(fallback: 'legacy'), 'current');
   });
   test('chat summary references the exact atomic message id', () async {
-    await MatchingService(firestore: db, auth: auth('coach'))
-        .acceptLesson('lesson');
+    await db.doc('chat_rooms/coach_student').set({
+      'participantIds': ['coach', 'student'],
+      'studentUid': 'student',
+      'coachUid': 'coach'
+    });
     await ChatService(firestore: db, auth: auth('student'))
         .sendMessage('coach_student', ' hello ');
     final room = db.collection('chat_rooms').doc('coach_student');

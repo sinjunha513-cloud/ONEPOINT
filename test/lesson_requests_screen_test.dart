@@ -26,6 +26,10 @@ void main() {
       'participantIds': [studentUid, instructorUid],
       'status': 'pending',
       'createdAt': Timestamp(createdSeconds, 0),
+      'scheduledStartAt':
+          Timestamp.fromDate(DateTime.now().subtract(const Duration(hours: 2))),
+      'scheduledEndAt':
+          Timestamp.fromDate(DateTime.now().subtract(const Duration(hours: 1))),
     });
   }
 
@@ -40,26 +44,87 @@ void main() {
         child: child!,
       ),
       home: LessonRequestsScreen(
+        key: ValueKey('lessons-$uid'),
         service: MatchingService(
           firestore: firestore,
           functions: FakeFunctions((name, data) async {
-            expect(name, 'completeLesson');
-            // Fixed server response fixture. Domain and authorization tests run
-            // against the actual callable handlers in the Emulator suite.
-            await firestore.collection('lesson_requests').doc('lesson').update({
-              'status': 'completed',
-              'reviewScore': data['reviewScore'],
-              'reviewFeedback': data['feedback'],
-              'attendanceBadge': {
-                'signatureMove': data['signatureMove'],
-                'verifiedBy': 'coach'
-              },
-            });
-            await firestore.collection('users').doc('student').update({
-              'lessonCount': 2,
-              'reviewScores': [4.0, 4.0],
-            });
-            return {'lessonId': 'lesson', 'status': 'completed'};
+            // Fixed callable response fixtures; domain/atomicity checks exercise
+            // the actual server handlers in security-tests.
+            final ref = firestore.doc('lesson_requests/${data['lessonId']}');
+            if (name == 'completeLesson') {
+              await ref.update({
+                'completionReview': {
+                  'status': 'pending',
+                  'revision': 1,
+                  'requestedBy': 'coach',
+                  'reviewScore': data['reviewScore'],
+                  'feedback': data['feedback'],
+                  'attendanceBadge': {
+                    'signatureMove': data['signatureMove'],
+                    'verifiedBy': 'coach'
+                  }
+                }
+              });
+            } else if (name == 'respondLessonCompletion' &&
+                data['decision'] == 'confirm') {
+              expect(data['revision'], 1);
+              final review =
+                  (await ref.get()).data()!['completionReview'] as Map;
+              await ref.update({
+                'status': 'completed',
+                'reviewScore': review['reviewScore'],
+                'reviewFeedback': review['feedback'],
+                'attendanceBadge': review['attendanceBadge'],
+                'completionReview': {...review, 'status': 'confirmed'}
+              });
+              await firestore.doc('users/student').update({
+                'lessonCount': 2,
+                'reviewScores': [4.0, 4.0]
+              });
+            } else if (name == 'respondLessonCompletion' &&
+                data['decision'] == 'dispute') {
+              await ref.update({
+                'completionReview': {
+                  'status': 'disputed',
+                  'revision': 1,
+                  'disputeReason': data['reason']
+                }
+              });
+            } else if (name == 'respondScheduleChange') {
+              final proposal =
+                  (await ref.get()).data()!['scheduleProposal'] as Map;
+              expect(data['revision'], proposal['revision']);
+              await ref.update({
+                'scheduleProposal': {
+                  ...proposal,
+                  'status':
+                      data['decision'] == 'approve' ? 'approved' : 'rejected'
+                }
+              });
+            } else {
+              expect(['acceptLesson', 'rejectLesson', 'cancelLesson'],
+                  contains(name));
+              await ref.update({
+                'status': name == 'acceptLesson'
+                    ? 'accepted'
+                    : name == 'rejectLesson'
+                        ? 'rejected'
+                        : 'cancelled',
+                if (data['reason'] != null)
+                  'cancellationReason': data['reason'],
+              });
+              if (name == 'acceptLesson') {
+                await firestore.doc('chat_rooms/coach_student').set({
+                  'participantIds': ['coach', 'student']
+                });
+              }
+              if (name == 'cancelLesson') {
+                await firestore
+                    .doc('active_lesson_requests/coach_student')
+                    .delete();
+              }
+            }
+            return {'lessonId': data['lessonId']};
           }),
           auth: MockFirebaseAuth(
             mockUser: MockUser(uid: uid),
@@ -116,7 +181,7 @@ void main() {
     expect(find.text('신청 취소'), findsOneWidget);
     expect(find.text('수락'), findsNothing);
     expect(find.text('거절'), findsNothing);
-    expect(find.text('레슨 완료 및 평가'), findsNothing);
+    expect(find.text('완료 확인 요청'), findsNothing);
     expect(find.text('채팅'), findsNothing);
 
     await tester.tap(find.text('신청 취소'));
@@ -162,7 +227,8 @@ void main() {
     expect(find.byKey(const ValueKey('lesson-card-received')), findsOneWidget);
   });
 
-  testWidgets('coach accepts and evaluates a lesson, updating progress once',
+  testWidgets(
+      'coach requests completion and student confirmation then updates progress',
       (tester) async {
     await addLesson();
     await showLessons(tester, 'coach');
@@ -181,12 +247,12 @@ void main() {
       isTrue,
     );
 
-    await tester.tap(find.text('레슨 완료 및 평가'));
+    await tester.tap(find.text('완료 확인 요청'));
     // The lesson stays busy while the dialog is open, so its progress
     // indicator intentionally continues animating beneath the dialog.
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(AlertDialog), findsOneWidget);
-    await tester.tap(find.text('평가하고 완료'));
+    await tester.tap(find.text('평가하고 확인 요청'));
     await tester.pump();
     expect(find.text('평가 점수를 선택해 주세요.'), findsOneWidget);
     expect(
@@ -202,7 +268,7 @@ void main() {
     await tester.enterText(
         find.byKey(const ValueKey('lesson-feedback')), '패스 정확도가 좋아졌어요.');
     // A score alone must never issue an attendance badge.
-    await tester.tap(find.text('평가하고 완료'));
+    await tester.tap(find.text('평가하고 확인 요청'));
     await tester.pump();
     expect(find.text('실제 레슨 참여 여부를 확인해 주세요.'), findsOneWidget);
     final unconfirmed =
@@ -215,14 +281,24 @@ void main() {
     await tester
         .tap(find.byKey(const ValueKey('lesson-attendance-confirmation')));
     await tester.pump();
-    await tester.tap(find.text('평가하고 완료'));
+    await tester.tap(find.text('평가하고 확인 요청'));
     await tester.pumpAndSettle();
 
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('수강생 참여 확인 대기'), findsOneWidget);
+    expect(
+        (await firestore.doc('lesson_requests/lesson').get()).data()!['status'],
+        'accepted');
+    expect(
+        (await firestore.doc('users/student').get()).data()!['lessonCount'], 1);
+    await showLessons(tester, 'student');
+    await tester.tap(find.text('참여 확인 · 완료'));
+    await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.text('완료'), findsOneWidget);
     expect(find.text('수강생 평가: 4.0 / 5'), findsOneWidget);
     expect(find.text('패스 정확도가 좋아졌어요.'), findsOneWidget);
-    expect(find.text('레슨 완료 및 평가'), findsNothing);
+    expect(find.text('완료 확인 요청'), findsNothing);
     final lesson =
         (await firestore.collection('lesson_requests').doc('lesson').get())
             .data()!;
@@ -233,7 +309,7 @@ void main() {
     expect(lesson['reviewFeedback'], '패스 정확도가 좋아졌어요.');
     expect(lesson['attendanceBadge']['signatureMove'], '라 크로케타');
     expect(lesson['attendanceBadge']['verifiedBy'], 'coach');
-    expect(find.text('참여 확인 완료 · 출석 뱃지 지급'), findsOneWidget);
+    expect(find.text('코치 참여 확인 완료 · 출석 뱃지 획득'), findsOneWidget);
     expect(student['lessonCount'], 2);
     expect(student['reviewScores'], [4.0, 4.0]);
 
@@ -242,7 +318,7 @@ void main() {
       'updatedAt': Timestamp(200, 0),
     });
     await tester.pumpAndSettle();
-    expect(find.text('레슨 완료 및 평가'), findsNothing);
+    expect(find.text('완료 확인 요청'), findsNothing);
     expect(
       (await firestore.collection('users').doc('student').get())
           .data()!['lessonCount'],
@@ -260,7 +336,7 @@ void main() {
 
     expect(find.text('거절됨'), findsOneWidget);
     expect(find.text('수락'), findsNothing);
-    expect(find.text('레슨 완료 및 평가'), findsNothing);
+    expect(find.text('완료 확인 요청'), findsNothing);
     expect(
       (await firestore.collection('lesson_requests').doc('lesson').get())
           .data()!['status'],
@@ -281,7 +357,7 @@ void main() {
       'status': 'accepted',
     });
     await showLessons(tester, 'coach');
-    await tester.tap(find.text('레슨 완료 및 평가'));
+    await tester.tap(find.text('완료 확인 요청'));
     await tester.pump();
 
     expect(find.text('마이페이지의 시그니처 뱃지 관리에서 뱃지를 먼저 등록해 주세요.'), findsOneWidget);
@@ -304,7 +380,7 @@ void main() {
       'signatureMove': '감아차기',
     });
     await showLessons(tester, 'coach');
-    await tester.tap(find.text('레슨 완료 및 평가'));
+    await tester.tap(find.text('완료 확인 요청'));
     await tester.pump(const Duration(milliseconds: 400));
     final signatureField = tester.widget<TextFormField>(
         find.byKey(const ValueKey('lesson-signature-move')));
@@ -317,7 +393,7 @@ void main() {
         find.byKey(const ValueKey('lesson-attendance-confirmation')));
     await tester
         .tap(find.byKey(const ValueKey('lesson-attendance-confirmation')));
-    await tester.tap(find.text('평가하고 완료'));
+    await tester.tap(find.text('평가하고 확인 요청'));
     await tester.pumpAndSettle();
 
     final lesson =
@@ -325,7 +401,9 @@ void main() {
             .data()!;
     final instructor =
         (await firestore.collection('instructors').doc('coach').get()).data()!;
-    expect(lesson['attendanceBadge']['signatureMove'], '감아차기');
+    expect(
+        lesson['completionReview']['attendanceBadge']['signatureMove'], '감아차기');
+    expect(lesson['status'], 'accepted');
     expect(instructor['signatureMove'], '감아차기');
   });
 
@@ -338,7 +416,7 @@ void main() {
     });
     await showLessons(tester, 'coach',
         size: const Size(320, 640), textScale: 1.5);
-    await tester.tap(find.text('레슨 완료 및 평가'));
+    await tester.tap(find.text('완료 확인 요청'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(tester.takeException(), isNull);
     await tester.ensureVisible(
@@ -385,5 +463,96 @@ void main() {
     expect(find.textContaining('아직 레슨 내역이 없습니다.'), findsOneWidget);
     expect(find.byType(Card), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets(
+      'future lessons cannot request completion and cancellation needs a reason',
+      (tester) async {
+    await addLesson();
+    await firestore.doc('lesson_requests/lesson').update({
+      'status': 'accepted',
+      'scheduledStartAt':
+          Timestamp.fromDate(DateTime.now().add(const Duration(days: 1))),
+      'scheduledEndAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(days: 1, hours: 1))),
+      'scheduleProposal': {
+        'status': 'pending',
+        'revision': 1,
+        'requestedBy': 'coach',
+        'startAt':
+            Timestamp.fromDate(DateTime.now().add(const Duration(days: 2))),
+        'endAt': Timestamp.fromDate(
+            DateTime.now().add(const Duration(days: 2, hours: 1))),
+        'expiresAt':
+            Timestamp.fromDate(DateTime.now().add(const Duration(hours: 24))),
+      },
+    });
+    await showLessons(tester, 'coach');
+    expect(find.text('완료 확인 요청'), findsNothing);
+    await tester.tap(find.text('레슨 취소'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('제출'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+        (await firestore.doc('lesson_requests/lesson').get()).data()!['status'],
+        'accepted');
+    await tester.enterText(find.byType(TextField), '개인 일정');
+    await tester.tap(find.text('제출'));
+    await tester.pumpAndSettle();
+    expect(find.text('취소 사유: 개인 일정'), findsOneWidget);
+    expect(find.text('요청 철회'), findsNothing);
+    expect(find.text('날짜 변경 승인 대기'), findsNothing);
+    expect(
+        (await firestore.doc('users/student').get()).data()!['lessonCount'], 1);
+  });
+
+  testWidgets(
+      'date change approval is shown to counterparty and includes displayed revision',
+      (tester) async {
+    await addLesson();
+    await firestore.doc('lesson_requests/lesson').update({
+      'status': 'accepted',
+      'scheduleProposal': {
+        'status': 'pending',
+        'revision': 4,
+        'requestedBy': 'coach',
+        'startAt':
+            Timestamp.fromDate(DateTime.now().add(const Duration(days: 2))),
+        'endAt': Timestamp.fromDate(
+            DateTime.now().add(const Duration(days: 2, hours: 1))),
+        'expiresAt':
+            Timestamp.fromDate(DateTime.now().add(const Duration(hours: 24))),
+      }
+    });
+    await showLessons(tester, 'student');
+    expect(find.text('승인 전에는 기존 일정이 유지됩니다.'), findsOneWidget);
+    expect(find.text('요청 철회'), findsNothing);
+    await tester.tap(find.text('변경 승인'));
+    await tester.pumpAndSettle();
+    expect(find.text('변경 승인'), findsNothing);
+    expect(
+        (await firestore.doc('lesson_requests/lesson').get())
+            .data()!['scheduleProposal']['status'],
+        'approved');
+  });
+
+  testWidgets(
+      'student can report a no-show without claiming completion rewards',
+      (tester) async {
+    await addLesson();
+    await firestore
+        .doc('lesson_requests/lesson')
+        .update({'status': 'accepted'});
+    await showLessons(tester, 'student');
+    await tester.tap(find.text('수업 미진행 · 완료 이의 제기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '코치가 오지 않았어요');
+    await tester.tap(find.text('제출'));
+    await tester.pumpAndSettle();
+    expect(find.text('완료 이의 제기 · 검토 중'), findsOneWidget);
+    expect(find.text('참여 확인 · 완료'), findsNothing);
+    expect(
+        (await firestore.doc('users/student').get()).data()!['lessonCount'], 1);
   });
 }

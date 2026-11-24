@@ -28,7 +28,7 @@ async function deliver(uid: unknown, key: string, notice: Notice, at: unknown) {
 export async function notifyLesson(id: string, after: Data, before?: Data, onlyUid?: string) {
   const participants = [...new Set([after.studentUid, after.instructorUid])].filter(uid => typeof uid === "string" && (!onlyUid || uid === onlyUid));
   const state = text(after.status);
-  const labels: Record<string, string> = {pending:"레슨 신청", accepted:"레슨 수락", confirmed:"레슨 예약 확정", completed:"레슨 완료", rejected:"레슨 신청 거절", cancelled:"레슨 취소"};
+  const labels: Record<string, string> = {pending:"레슨 신청", accepted:"레슨 수락", confirmed:"레슨 예약 확정", completed:"레슨 완료", rejected:"레슨 신청 거절", cancelled:"레슨 취소", expired:"레슨 신청 응답 기한 만료"};
   const at = after.updatedAt ?? after.completedAt ?? after.createdAt;
   for (const uid of participants) {
     const student = uid === after.studentUid;
@@ -39,6 +39,13 @@ export async function notifyLesson(id: string, after: Data, before?: Data, onlyU
       await deliver(uid, `lesson:${id}:${state}`, {kind:"lesson", title:labels[state], body, targetType:"lesson", targetId:id}, at);
     }
     const revision = Number(after.scheduleRevision ?? 0);
+    for (const [field, prefix] of [["scheduleProposal", "날짜 변경"], ["completionReview", "참여 확인"]]) {
+      const current = after[field], old = before?.[field];
+      if (current && (current.status !== old?.status || current.revision !== old?.revision)) {
+        const labels: Record<string,string> = {pending:"요청", approved:"승인", rejected:"거절", withdrawn:"철회", expired:"만료", disputed:"이의 제기", reopened:"재협의", confirmed:"확인 완료", resolved:"관리자 확인", cancelled:"취소"};
+        await deliver(uid, `${field}:${id}:${current.revision ?? 0}:${current.status}`, {kind:field === "scheduleProposal" ? "schedule" : "lesson", title:`${prefix} ${labels[current.status] ?? current.status}`, body:`${counterpart} 님과의 레슨에서 확인할 내용이 있습니다. 내 레슨을 열어 주세요.`, targetType:"lesson", targetId:id}, after.updatedAt ?? at);
+      }
+    }
     if (revision > 0 && revision !== Number(before?.scheduleRevision ?? 0)) {
       await deliver(uid, `schedule:${id}:${revision}`, {kind:"schedule", title:"레슨 일정이 변경되었습니다", body:`${counterpart} 님과의 최신 레슨 날짜와 시간을 확인해 주세요.`, targetType:"lesson", targetId:id}, at);
     }

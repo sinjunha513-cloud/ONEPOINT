@@ -103,7 +103,7 @@ test('lesson access and state transitions preserve participant/payment fields', 
   await seed('lesson_requests/pending',{...lesson,status:'pending'});
   await assertFails(updateDoc(doc(db('student'),'lesson_requests/pending'),{status:'accepted',updatedAt:serverTimestamp()}));
   await assertFails(updateDoc(doc(db('coach'),'lesson_requests/pending'),{participantIds:['coach','other'],status:'accepted',updatedAt:serverTimestamp()}));
-  await assertSucceeds(updateDoc(doc(db('coach'),'lesson_requests/pending'),{status:'accepted',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db('coach'),'lesson_requests/pending'),{status:'accepted',updatedAt:serverTimestamp()}));
   await assertFails(updateDoc(doc(db('coach'),'lesson_requests/lesson'),{status:'completed',updatedAt:serverTimestamp()}));
   await seed('lesson_requests/paid',{...lesson,status:'pending',paymentRequired:true});
   await assertFails(updateDoc(doc(db('coach'),'lesson_requests/paid'),{status:'accepted',updatedAt:serverTimestamp()}));
@@ -208,7 +208,138 @@ test('feedback Firestore metadata requires participant, author, path and eligibl
 const require = createRequire(import.meta.url);
 let api;
 const request = (uid,data) => ({auth:uid ? {uid,token:{email:`${uid}@example.test`}} : undefined,data});
-const call = (name,uid,data) => { api ??= require('../functions/lib/src/index.js'); return api[name].run(request(uid,data)); };
+const call = async (name,uid,data) => {
+  api ??= require('../functions/lib/src/index.js');
+  if (['respondScheduleChange','respondLessonCompletion','resolveLessonDispute'].includes(name) && data.revision === undefined) {
+    let lesson;
+    await env.withSecurityRulesDisabled(async c=>{lesson=(await getDoc(doc(c.firestore(), 'lesson_requests/'+data.lessonId))).data();});
+    data={...data,revision:Number(lesson?.[name==='respondScheduleChange'?'scheduleProposal':'completionReview']?.revision??0)};
+  }
+  return api[name].run(request(uid,data));
+};
+
+async function workflowSlot(coach='coach', offset=0) {
+  const start=Date.now()+2*86400000+offset*3600000;
+  return call('saveAvailabilitySlot',coach,{startAtMillis:start,endAtMillis:start+3600000});
+}
+async function pastLesson(id,extra={}) {
+  await seed(`lesson_requests/${id}`,{...lesson,scheduledStartAt:new Date(Date.now()-7200000),scheduledEndAt:new Date(Date.now()-3600000),...extra});
+}
+test('workflow: same coach accepts multiple dates and concurrent cross-coach overlaps have one winner', async()=>{
+  const a=await workflowSlot(),b=await workflowSlot('coach',2);
+  const first=await call('requestLessonWithSlot','student',{instructorId:'coach',slotId:a.slotId});
+  await call('acceptLesson','coach',first);
+  await call('requestLessonWithSlot','student',{instructorId:'coach',slotId:b.slotId});
+  await seed('users/teacher',profile('teacher',{role:'coach'}));
+  await seed('instructors/teacher',{uid:'teacher',userId:'teacher',name:'teacher',sport:'축구',status:'approved'});
+  const start=Date.now()+4*86400000;
+  const slots=await Promise.all(['coach','teacher'].map(uid=>call('saveAvailabilitySlot',uid,{startAtMillis:start,endAtMillis:start+3600000})));
+  const booked=await Promise.allSettled(['coach','teacher'].map((uid,i)=>call('requestLessonWithSlot','student',{instructorId:uid,slotId:slots[i].slotId})));
+  assert.equal(booked.filter(r=>r.status==='fulfilled').length,1);
+  const crossStart=Date.now()+7*86400000;
+  const teaching=await call('saveAvailabilitySlot','coach',{startAtMillis:crossStart,endAtMillis:crossStart+3600000});
+  const learning=await call('saveAvailabilitySlot','teacher',{startAtMillis:crossStart,endAtMillis:crossStart+3600000});
+  await call('requestLessonWithSlot','coach',{instructorId:'teacher',slotId:learning.slotId});
+  await assert.rejects(call('requestLessonWithSlot','other',{instructorId:'coach',slotId:teaching.slotId}),{code:'already-exists'});
+});
+test('workflow: accepted cancellation requires reason and releases the precise slot',async()=>{
+  const slot=await workflowSlot(),booking=await call('requestLessonWithSlot','student',{instructorId:'coach',slotId:slot.slotId});
+  await call('acceptLesson','coach',booking);
+  await assert.rejects(call('cancelLesson','other',{...booking,reason:'not mine'}),{code:'permission-denied'});
+  await assert.rejects(call('cancelLesson','student',booking),{code:'invalid-argument'});
+  await call('cancelLesson','student',{...booking,reason:'일정 취소'});
+  assert.equal((await getDoc(doc(db('coach'),`instructors/coach/availability/${slot.slotId}`))).data().status,'available');
+  const next=await call('requestLessonWithSlot','other',{instructorId:'coach',slotId:slot.slotId});
+  const {releaseClosedLesson}=require('../functions/lib/src/lesson_workflow.js');await releaseClosedLesson(booking.lessonId);
+  assert.equal((await getDoc(doc(db('coach'),`instructors/coach/availability/${slot.slotId}`))).data().lessonId,next.lessonId);
+});
+test('workflow: date proposal holds new time, requires the other party and atomically swaps after approval',async()=>{
+  const a=await workflowSlot(),b=await workflowSlot('coach',2),booking=await call('requestLessonWithSlot','student',{instructorId:'coach',slotId:a.slotId});
+  await call('acceptLesson','coach',booking);
+  await call('rescheduleLesson','student',{...booking,slotId:b.slotId});
+  const path=`lesson_requests/${booking.lessonId}`;
+  assert.equal((await getDoc(doc(db('student'),path))).data().slotId,a.slotId);
+  assert.equal((await getDoc(doc(db('coach'),`instructors/coach/availability/${b.slotId}`))).data().status,'held');
+  await assert.rejects(call('respondScheduleChange','student',{...booking,decision:'approve'}),{code:'permission-denied'});
+  await assert.rejects(call('requestLessonWithSlot','other',{instructorId:'coach',slotId:b.slotId}),{code:'failed-precondition'});
+  await assert.rejects(call('respondScheduleChange','coach',{...booking,decision:'approve',revision:0}),{code:'failed-precondition'});
+  await call('respondScheduleChange','coach',{...booking,decision:'approve'});
+  assert.equal((await getDoc(doc(db('student'),path))).data().slotId,b.slotId);
+  assert.equal((await getDoc(doc(db('coach'),`instructors/coach/availability/${a.slotId}`))).data().status,'available');
+  const history=await getDocs(collection(db('student'),path+'/schedule_changes'));assert.equal(history.size,1);
+});
+test('workflow: rejected, withdrawn and expired proposals retain original booking and release holds',async()=>{
+  const a=await workflowSlot(),b=await workflowSlot('coach',2),booking=await call('requestLessonWithSlot','student',{instructorId:'coach',slotId:a.slotId});
+  await call('acceptLesson','coach',booking);
+  for(const decision of ['reject','withdraw','expire']) {
+    await call('rescheduleLesson','student',{...booking,slotId:b.slotId});
+    if(decision==='expire') {
+      await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),`lesson_requests/${booking.lessonId}`),{'scheduleProposal.expiresAt':new Date(Date.now()-1000)}));
+      await require('../functions/lib/src/lesson_workflow.js').expireLesson(booking.lessonId);
+    }else await call('respondScheduleChange',decision==='reject'?'coach':'student',{...booking,decision});
+    assert.equal((await getDoc(doc(db('student'),`lesson_requests/${booking.lessonId}`))).data().slotId,a.slotId);
+    assert.equal((await getDoc(doc(db('coach'),`instructors/coach/availability/${b.slotId}`))).data().status,'available');
+  }
+});
+test('workflow: overdue pending request expires before acceptance and frees resources; paid records are untouched',async()=>{
+  const a=await workflowSlot(),booking=await call('requestLessonWithSlot','student',{instructorId:'coach',slotId:a.slotId});
+  await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),`lesson_requests/${booking.lessonId}`),{expiresAt:new Date(Date.now()-1000)}));
+  await assert.rejects(call('acceptLesson','coach',booking),{code:'failed-precondition'});
+  assert.equal((await getDoc(doc(db('student'),`lesson_requests/${booking.lessonId}`))).data().status,'expired');
+  assert.equal((await getDoc(doc(db('coach'),`instructors/coach/availability/${a.slotId}`))).data().status,'available');
+  await seed('lesson_requests/paid_expiry',{...lesson,status:'pending',price:50000,expiresAt:new Date(0)});
+  await require('../functions/lib/src/lesson_workflow.js').expireLesson('paid_expiry');
+  assert.equal((await getDoc(doc(db('student'),'lesson_requests/paid_expiry'))).data().status,'pending');
+});
+test('workflow: only ended lessons can request completion and only student confirmation awards once',async()=>{
+  await seed('lesson_requests/future',{...lesson,scheduledStartAt:new Date(Date.now()+3600000),scheduledEndAt:new Date(Date.now()+7200000)});
+  await assert.rejects(call('completeLesson','coach',{lessonId:'future',reviewScore:4,feedback:''}),{code:'failed-precondition'});
+  await pastLesson('ended');
+  await call('completeLesson','coach',{lessonId:'ended',reviewScore:4,feedback:'확인'});
+  assert.equal((await getDoc(doc(db('student'),'lesson_requests/ended'))).data().status,'accepted');
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,0);
+  await assert.rejects(call('respondLessonCompletion','coach',{lessonId:'ended',decision:'confirm'}),{code:'permission-denied'});
+  await Promise.all(Array.from({length:3},()=>call('respondLessonCompletion','student',{lessonId:'ended',decision:'confirm'})));
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,1);
+  assert.equal((await getDoc(doc(db('student'),'lesson_requests/ended'))).data().attendanceBadge.signatureMove,'kick');
+  await assertFails(updateDoc(doc(db('coach'),'lesson_requests/ended'),{status:'accepted'}));
+});
+test('workflow: disputed attendance blocks awards and requires an audited admin decision',async()=>{
+  await pastLesson('disputed');
+  await call('completeLesson','coach',{lessonId:'disputed',reviewScore:4,feedback:''});
+  await call('respondLessonCompletion','student',{lessonId:'disputed',decision:'dispute',reason:'진행 내용이 다릅니다'});
+  await assert.rejects(call('completeLesson','coach',{lessonId:'disputed',reviewScore:4,feedback:''}),{code:'failed-precondition'});
+  await assert.rejects(call('respondLessonCompletion','student',{lessonId:'disputed',decision:'confirm'}),{code:'failed-precondition'});
+  await assert.rejects(call('resolveLessonDispute','coach',{lessonId:'disputed',decision:'confirm',reason:'검토'}),{code:'permission-denied'});
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,0);
+  await call('resolveLessonDispute','admin',{lessonId:'disputed',decision:'confirm',reason:'참여 자료 확인'});
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,1);
+  const audit=await getDocs(collection(db('admin'),'lesson_requests/disputed/workflow_history'));assert.equal(audit.size,3);
+  await assertFails(getDocs(collection(db('other'),'lesson_requests/disputed/workflow_history')));
+});
+test('workflow: no-show dispute can be reopened or cancelled without fabricated coach awards',async()=>{
+  await pastLesson('noshow');
+  await call('respondLessonCompletion','student',{lessonId:'noshow',decision:'dispute',reason:'코치 미참여'});
+  await assert.rejects(call('resolveLessonDispute','admin',{lessonId:'noshow',decision:'confirm',reason:'확인'}),{code:'failed-precondition'});
+  await call('resolveLessonDispute','admin',{lessonId:'noshow',decision:'reopen',reason:'재협의'});
+  await call('respondLessonCompletion','student',{lessonId:'noshow',decision:'dispute',reason:'협의되지 않음'});
+  await call('resolveLessonDispute','admin',{lessonId:'noshow',decision:'cancel',reason:'미진행 확인'});
+  assert.equal((await getDoc(doc(db('student'),'lesson_requests/noshow'))).data().status,'cancelled');
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,0);
+});
+
+test('workflow: reopened completion keeps increasing revisions and rejects stale confirmation',async()=>{
+  await pastLesson('redo');
+  await call('completeLesson','coach',{lessonId:'redo',reviewScore:4,feedback:''});
+  await call('respondLessonCompletion','student',{lessonId:'redo',decision:'dispute',reason:'확인 필요'});
+  await call('resolveLessonDispute','admin',{lessonId:'redo',decision:'reopen',reason:'다시 확인'});
+  await call('completeLesson','coach',{lessonId:'redo',reviewScore:5,feedback:'재확인'});
+  const review=(await getDoc(doc(db('student'),'lesson_requests/redo'))).data().completionReview;
+  assert.equal(review.revision,3);
+  await assert.rejects(call('respondLessonCompletion','student',{lessonId:'redo',decision:'confirm',revision:1}),{code:'failed-precondition'});
+  await call('respondLessonCompletion','student',{lessonId:'redo',decision:'confirm',revision:3});
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,1);
+});
 
 const couponMonth = () => {
   const date=new Date(Date.now()+9*3600000);
@@ -321,15 +452,12 @@ test('coupon reconciliation reads current state, releases unpaid cancellation an
 test('server workflows: booking, acceptance/chat creation, completion, idempotent likes and public projection', async () => {
   const {lessonId}=await call('requestLesson','student',{instructorId:'coach'});
   await assert.rejects(call('requestLesson','student',{instructorId:'coach'}),{code:'already-exists'});
-  const d=db('coach'), batch=writeBatch(d);
-  batch.update(doc(d,`lesson_requests/${lessonId}`),{status:'accepted',updatedAt:serverTimestamp()});
-  // Original active-pair + acceptedRoom linkage is required in this same batch.
-  await env.withSecurityRulesDisabled(c => deleteDoc(doc(c.firestore(),'chat_rooms/coach_student')));
-  batch.set(doc(d,'chat_rooms/coach_student'),{participantIds:['coach','student'],studentUid:'student',studentName:'student',coachUid:'coach',coachName:'coach'});
-  await assertSucceeds(batch.commit());
+  await call('acceptLesson','coach',{lessonId});
+  await seed(`lesson_requests/${lessonId}`,{...(await getDoc(doc(db('student'),`lesson_requests/${lessonId}`))).data(),scheduledStartAt:new Date(Date.now()-7200000),scheduledEndAt:new Date(Date.now()-3600000)});
   await assert.rejects(call('completeLesson','other',{lessonId,reviewScore:4,feedback:''}),{code:'permission-denied'});
   await call('completeLesson','coach',{lessonId,reviewScore:4,feedback:'good'});
   await call('completeLesson','coach',{lessonId,reviewScore:4,feedback:'good'});
+  await call('respondLessonCompletion','student',{lessonId,decision:'confirm'});
   assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,1);
   await assertSucceeds(setDoc(doc(db('student'),'feed_videos/video'),feed));
   await call('setFeedLiked','other',{videoId:'video',liked:true});
@@ -477,10 +605,12 @@ test('server scheduling: owner-only slots, overlap/booking lock, reschedule and 
   const next=await call('saveAvailabilitySlot','coach',{startAtMillis:end,endAtMillis:end+3600000});
   await assert.rejects(call('rescheduleLesson','other',{lessonId,slotId:next.slotId}),{code:'permission-denied'});
   await call('rescheduleLesson','coach',{lessonId,slotId:next.slotId});
+  await call('respondScheduleChange','student',{lessonId,decision:'approve'});
   const history=await getDocs(collection(db('student'),`lesson_requests/${lessonId}/schedule_changes`));
   assert.equal(history.size,1); assert.ok(history.docs[0].data().newStartAt);
   const third=await call('saveAvailabilitySlot','coach',{startAtMillis:end+3600000,endAtMillis:end+7200000});
   await call('rescheduleLesson','student',{lessonId,slotId:third.slotId});
+  await call('respondScheduleChange','coach',{lessonId,decision:'approve'});
   assert.equal((await getDoc(doc(db('student'),`lesson_requests/${lessonId}`))).data().scheduleRevision,2);
 });
 
@@ -555,20 +685,23 @@ test('booking concurrency, invalid completion and legacy signature fallback pres
   const lessonId=results.find(r=>r.status==='fulfilled').value.lessonId;
   for(const score of [0,5.01,NaN,Infinity]) await assert.rejects(call('completeLesson','coach',{lessonId,reviewScore:score,feedback:''}),{code:'invalid-argument'});
   await assert.rejects(call('completeLesson','coach',{lessonId,reviewScore:4,feedback:''}),{code:'failed-precondition'});
-  await assertSucceeds(updateDoc(doc(db('coach'),`lesson_requests/${lessonId}`),{status:'accepted',updatedAt:serverTimestamp()}));
+  await call('acceptLesson','coach',{lessonId});
+  await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),`lesson_requests/${lessonId}`),{scheduledStartAt:new Date(Date.now()-7200000),scheduledEndAt:new Date(Date.now()-3600000)}));
   await env.withSecurityRulesDisabled(c => deleteDoc(doc(c.firestore(),'instructors/coach')));
   await assert.rejects(call('completeLesson','coach',{lessonId,reviewScore:4,feedback:''}),{code:'permission-denied'});
   await seed('instructors/coach',{uid:'coach',userId:'coach',name:'coach',sport:lesson.sport,status:'approved'});
   await call('completeLesson','coach',{lessonId,reviewScore:4,feedback:''});
+  await call('respondLessonCompletion','student',{lessonId,decision:'confirm'});
   const completed=(await getDoc(doc(db('student'),`lesson_requests/${lessonId}`))).data();
   assert.equal(completed.attendanceBadge.signatureMove,'kick');
-  const second='second'; await seed(`lesson_requests/${second}`,{studentUid:'student',instructorUid:'coach',participantIds:['coach','student'],status:'accepted',signatureMove:'kick',paymentRequired:false});
+  const second='second'; await seed(`lesson_requests/${second}`,{studentUid:'student',instructorUid:'coach',participantIds:['coach','student'],status:'accepted',signatureMove:'kick',paymentRequired:false,scheduledStartAt:new Date(Date.now()-7200000),scheduledEndAt:new Date(Date.now()-3600000)});
   await call('completeLesson','coach',{lessonId:second,reviewScore:4,feedback:''});
+  await call('respondLessonCompletion','student',{lessonId:second,decision:'confirm'});
   const student=(await getDoc(doc(db('student'),'users/student'))).data();
   assert.equal(student.lessonCount,2); assert.deepEqual(student.reviewScores,[4,4]);
 });
 
-test('original client booking/pair/accepted-room transaction remains supported and rejects partial writes', async () => {
+test('legacy client booking/acceptance batches cannot bypass calendar validation', async () => {
   const d=db('student'), r=doc(d,'lesson_requests/client'), pair=doc(d,'active_lesson_requests/coach_student');
   const data={...lesson,instructorId:'coach',status:'pending',signatureMove:'kick',isInstructorInitiated:false,createdAt:serverTimestamp()};
   await assertFails(setDoc(r,data));
@@ -577,25 +710,25 @@ test('original client booking/pair/accepted-room transaction remains supported a
     await assertFails(batch.commit());
   }
   const create=writeBatch(d); create.set(r,data); create.set(pair,{requestId:'client',participantIds:['coach','student']});
-  await assertSucceeds(create.commit());
+  await assertFails(create.commit());
   await env.withSecurityRulesDisabled(c=>deleteDoc(doc(c.firestore(),'chat_rooms/coach_student')));
   const coachDb=db('coach'), coachRef=doc(coachDb,'lesson_requests/client');
   await assertFails(updateDoc(coachRef,{status:'accepted',updatedAt:serverTimestamp()}));
   const accept=writeBatch(coachDb); accept.update(coachRef,{status:'accepted',updatedAt:serverTimestamp()});
   accept.set(doc(coachDb,'chat_rooms/coach_student'),{participantIds:['coach','student'],studentUid:'student',studentName:'student',coachUid:'coach',coachName:'coach'});
-  await assertSucceeds(accept.commit());
+  await assertFails(accept.commit());
   await assertFails(updateDoc(coachRef,{status:'rejected',updatedAt:serverTimestamp()}));
 });
 
-test('original completion/studentProgress/closedPair validation remains atomic and immutable', async () => {
+test('legacy completion batches cannot bypass student confirmation', async () => {
   await seed('active_lesson_requests/coach_student',{requestId:'lesson',participantIds:['coach','student']});
   const d=db('coach'), r=doc(d,'lesson_requests/lesson'), student=doc(d,'users/student');
   const completion={status:'completed',reviewScore:4,reviewFeedback:'good',attendanceBadge:{instructorUid:'coach',instructorName:'coach',sport:lesson.sport,signatureMove:'kick',awardedAt:serverTimestamp(),verifiedBy:'coach'},completedAt:serverTimestamp(),updatedAt:serverTimestamp()};
   await assertFails(updateDoc(r,completion));
   await assertFails(updateDoc(student,{lastCompletedLessonId:'lesson',lessonCount:1,reviewScores:[4],teacherMatchCount:0}));
   const batch=writeBatch(d); batch.update(r,completion); batch.update(student,{lastCompletedLessonId:'lesson',lessonCount:1,reviewScores:[4],teacherMatchCount:0}); batch.delete(doc(d,'active_lesson_requests/coach_student'));
-  await assertSucceeds(batch.commit());
-  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,1);
+  await assertFails(batch.commit());
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,0);
   for(const uid of ['coach','admin']) await assertFails(updateDoc(doc(db(uid),'lesson_requests/lesson'),{reviewScore:5}));
 });
 

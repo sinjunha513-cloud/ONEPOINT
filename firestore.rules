@@ -295,31 +295,8 @@ service cloud.firestore {
 
     match /lesson_requests/{lessonId} {
       allow read: if signedIn() && (participant(resource.data) || resource.data.studentUid == request.auth.uid || admin());
-      allow create: if signedIn() && own(request.resource.data.studentUid)
-        && user(request.auth.uid).role in ['student', 'admin']
-        && approvedCoach(request.resource.data.instructorUid)
-        && request.resource.data.keys().hasOnly([
-          'instructorId', 'instructorUid', 'instructorName', 'sport', 'signatureMove',
-          'signatureBadgeId', 'signatureBadgeColorIndex',
-          'studentUid', 'studentName', 'participantIds', 'status', 'isInstructorInitiated', 'createdAt', 'paymentRequired'])
-        && request.resource.data.get('paymentRequired', false) is bool
-        && request.resource.data.instructorId == request.resource.data.instructorUid
-        && request.resource.data.studentName == user(request.auth.uid).name
-        && request.resource.data.instructorName == get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.name
-        && request.resource.data.sport == get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.sport
-        && request.resource.data.sport in ['축구', '농구', '테니스', '배드민턴', '클라이밍', '수영', '골프', '복싱', '유도', '주짓수', '태권도', '필라테스', '요가', '탁구', '댄스', '크로스핏', '피겨', '스키', '헬스']
-        && request.resource.data.get('signatureMove', '') ==
-          get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.get('signatureMove', '')
-        && ((!request.resource.data.keys().hasAny(['signatureBadgeId', 'signatureBadgeColorIndex'])
-              && !get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.keys()
-                .hasAny(['signatureBadgeId', 'signatureBadgeColorIndex']))
-          || (validSignatureSelection(request.resource.data)
-            && request.resource.data.signatureBadgeId ==
-              get(/databases/$(database)/documents/instructors/$(request.resource.data.instructorUid)).data.signatureBadgeId))
-        && members(request.resource.data) && request.resource.data.status == 'pending'
-        && request.resource.data.isInstructorInitiated == false
-        && request.resource.data.createdAt == request.time
-        && newPair(request.resource.data, lessonId);
+      // Booking, calendar locks and student-confirmed completion are server-owned.
+      allow create: if false;
       function closedPair() {
         return !existsAfter(/databases/$(database)/documents/active_lesson_requests/$(pairKey(resource.data)));
       }
@@ -372,7 +349,7 @@ service cloud.firestore {
           && studentAfter.lessonCount == user(resource.data.studentUid).get('lessonCount', 0) + 1
           && closedPair();
       }
-      allow update: if statusChange() || completion();
+      allow update: if false;
       // Completed badges are immutable, including for administrators.
     }
 
@@ -405,20 +382,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /lesson_calendar_locks/{uid} { allow read, write: if false; }
+    match /lesson_requests/{lessonId}/workflow_history/{entryId} {
+      allow read: if signedIn() && (participant(get(/databases/$(database)/documents/lesson_requests/$(lessonId)).data) || admin());
+      allow write: if false;
+    }
     match /active_lesson_requests/{pairId} {
-      // Missing pair reads are required for transactional first requests.
       allow get: if signedIn() && (!exists(/databases/$(database)/documents/active_lesson_requests/$(pairId)) || participant(resource.data) || admin());
       allow list: if admin() || participant(resource.data);
-      function newRequest() {
-        let path = /databases/$(database)/documents/lesson_requests/$(request.resource.data.requestId);
-        let lesson = getAfter(path).data;
-        return !exists(path) && pairId == pairKey(lesson)
-          && lesson.status == 'pending' && lesson.participantIds == request.resource.data.participantIds;
-      }
-      allow create: if signedIn() && request.resource.data.keys().hasOnly(['requestId', 'participantIds'])
-        && participant(request.resource.data) && newRequest();
-      allow delete: if participant(resource.data)
-        && getAfter(/databases/$(database)/documents/lesson_requests/$(resource.data.requestId)).data.status in ['cancelled', 'rejected', 'completed'];
+      allow write: if false;
     }
 
     match /chat_rooms/{roomId} {
@@ -451,13 +423,9 @@ service cloud.firestore {
           && lesson.participantIds == data.participantIds
           && lesson.status == 'accepted';
       }
-      allow create: if request.resource.data.keys().hasOnly(['participantIds', 'studentUid', 'studentName', 'coachUid', 'coachName'])
-        && matchingRoom(request.resource.data);
+      allow create: if false;
       allow update: if participant(resource.data)
-        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageId', 'updatedAt'])
-            && nonempty(request.resource.data.lastMessage, 5000) && previewMessage())
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentName', 'coachName'])
-            && matchingRoom(request.resource.data)));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageId', 'updatedAt']) && previewMessage();
       match /messages/{messageId} {
         allow read: if participant(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data);
         allow create: if participant(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data)

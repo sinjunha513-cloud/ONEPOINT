@@ -8,3 +8,5 @@ export {projectUserPublicProfile, projectInstructorPublicProfile, requestLesson,
 export {saveAvailabilitySlot, saveAvailabilitySlots, deleteAvailabilitySlot, rescheduleLesson, releaseCancelledSlot, projectPublicAvailability} from "./scheduling";
 export {notifyLessonActivity, notifyChatMessage, notifyLessonFeedback, notifyCoachReview, notifyFeedReaction, syncMyNotifications} from "./notifications";
 export {claimMonthlyCoupon, applyLessonCoupon, removeLessonCoupon, syncLessonCoupon, syncPaymentCoupon} from "./coupons";
+
+export {acceptLesson, rejectLesson, cancelLesson, respondScheduleChange, respondLessonCompletion, resolveLessonDispute, expireLessonRequests} from "./lesson_workflow";

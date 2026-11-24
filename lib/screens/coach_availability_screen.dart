@@ -189,6 +189,7 @@ class _CoachAvailabilityScreenState extends State<CoachAvailabilityScreen> {
     return switch (slot.status) {
       'available' => '신청 가능',
       'booked' => '예약됨',
+      'held' => '날짜 변경 승인 대기',
       'completed' => '완료',
       _ => '확인 필요',
     };

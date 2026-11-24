@@ -129,7 +129,7 @@
       window.addEventListener('unhandledrejection', fail);
       return {fail, retry() {
         const url = new URL(window.location.href);
-        url.searchParams.set('appVersion', '20261120-icon-monthly-progress-v1');
+        url.searchParams.set('appVersion', '20261123-lesson-workflow-v1');
         url.searchParams.set('render', 'compat');
         window.location.replace(url.toString());
       }};
@@ -142,6 +142,6 @@
     <p id="loading-message">ONEPOINT를 불러오는 중이에요.</p>
     <button id="startup-retry" hidden onclick="window.onepointStartup.retry()">다시 시도</button>
   </div>
-  <script src="flutter_bootstrap.js?v=20261120-icon-monthly-progress-v1" async onerror="window.onepointStartup.fail()"></script>
+  <script src="flutter_bootstrap.js?v=20261123-lesson-workflow-v1" async onerror="window.onepointStartup.fail()"></script>
 </body>
 </html>

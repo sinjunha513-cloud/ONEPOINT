@@ -1,0 +1,210 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-24T03:04:32.558Z",
+  "functions": [
+    {
+      "name": "releaseCancelledSlot",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:36.018683390Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "completeLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.739211138Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLessonWithSlot",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:34.350121380Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "resolveLessonDispute",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.429671695Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "respondScheduleChange",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.771658441Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "cancelLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.834783579Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "syncMyNotifications",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.437171917Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "respondLessonCompletion",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.683232491Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "rescheduleLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.839780501Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "expireLessonRequests",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:33.958851633Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "acceptLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:30.977811701Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "requestLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:34.571912446Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "rejectLesson",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:32.924691910Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "notifyLessonActivity",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-23T04:55:34.249640440Z",
+      "region": "asia-northeast3"
+    }
+  ],
+  "authenticationProbes": [
+    {
+      "name": "completeLesson",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "requestLessonWithSlot",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "resolveLessonDispute",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "respondScheduleChange",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "cancelLesson",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "syncMyNotifications",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "respondLessonCompletion",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "rescheduleLesson",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "acceptLesson",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "requestLesson",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "rejectLesson",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    }
+  ],
+  "rules": {
+    "ruleset": "projects/onlyonepoint-lesson/rulesets/7992f74b-e3df-4801-b5dd-54e5417951e0",
+    "matchesLocalSource": true,
+    "sha256": "437801751e6cca800adb4907408e2faf0436da8bb9b551bd23f7a18f3c413963"
+  },
+  "scheduler": {
+    "name": "projects/onlyonepoint-lesson/locations/asia-northeast3/jobs/firebase-schedule-expireLessonRequests-asia-northeast3",
+    "state": "ENABLED",
+    "timeZone": "Asia/Seoul",
+    "schedule": "every 5 minutes",
+    "lastAttemptTime": "2026-11-24T03:01:02.850682Z",
+    "lastRunStatus": 0
+  },
+  "queryChecks": [
+    {
+      "name": "pendingExpiry",
+      "httpStatus": 200
+    },
+    {
+      "name": "acceptedProposalExpiry",
+      "httpStatus": 200
+    },
+    {
+      "name": "adminDisputes",
+      "httpStatus": 200
+    },
+    {
+      "name": "participantCalendar",
+      "httpStatus": 200
+    }
+  ],
+  "sourceSha256": {
+    "functions/src/lesson_workflow.ts": "8e088b7d1b81ca64d12385dc281b5de90ac3482fdbd9811af6f4f7b695ae126b",
+    "functions/src/scheduling.ts": "e385679c5feda558fd7ac4d31fa66ac067363bafcd65cc4822c158346b1a6c85",
+    "functions/src/notifications.ts": "1d24cf1d2921754408c780bd99e508d06bba5bda4ea038a6f2aa92dd00c08502",
+    "lib/services/matching_service.dart": "f81a6ef5907bdfc1f0ece84d3d056c14858aa2459098190c1dc6288e2b955dac",
+    "lib/screens/lesson_requests_screen.dart": "df2fafb95460f252513352e2cab5057f1f122ce575462c7b7440c8a26c0e86a0",
+    "lib/widgets/lesson_workflow_panel.dart": "d7cf00731d08609e45aeb8ad99234213182ee60dd79c23c3cfd7d5fc89098dd0",
+    "lib/screens/lesson_disputes_panel.dart": "3e2c577799ab941e73d3a990a241481588ea2a004a94c68cc6bc379ecc78ea15"
+  },
+  "validation": {
+    "flutterTests": 183,
+    "functionsUnitTests": 30,
+    "securityEmulatorTests": 53,
+    "webStartupTests": 5,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed",
+    "postReviewWidgetTests": 13,
+    "postReviewTargetedAnalyze": "passed"
+  },
+  "policies": {
+    "scope": "Ordinary non-payment lessons; review items 1–3 only",
+    "multipleDatesPerCoach": true,
+    "overlapGuard": "Both participants, including teaching/learning roles; serialized calendar locks",
+    "pendingExpiry": "Earlier of 24 hours after request or scheduled start; scheduled sweep every five minutes and immediate booking/acceptance checks",
+    "rescheduling": "Counterparty approval, original booking retained while proposed slot held; reject/withdraw/expiry releases hold",
+    "cancellation": "Either participant before accepted lesson starts, with required reason",
+    "completion": "After scheduled end: coach submission then student confirmation; exactly-once awards",
+    "disputes": "Student no-show/attendance dispute; admin reason required to confirm supported attendance, reopen or cancel",
+    "staleResponses": "Displayed revision must match current request"
+  },
+  "verification": "Emulator exercises actual server handlers; production checks are management metadata and unauthenticated rejection. No synthetic production lessons or attendance claims.",
+  "hostingDeployment": "docs/deployment/2026-11-24-hosting.json"
+}

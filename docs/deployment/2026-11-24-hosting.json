@@ -1,0 +1,136 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-24T03:05:02.363Z",
+  "primaryUrl": "https://onlyonepoint-lesson.web.app",
+  "sites": [
+    {
+      "site": "onlyonepoint-lesson",
+      "url": "https://onlyonepoint-lesson.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795489472240000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/52d1438b446ea597",
+      "releaseTime": "2026-11-24T03:04:32.240Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "27b858df86214604a1d6314c1832fbeb860532067ebba8625b393acb7bbc9a94",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "2195853561ed92b1e45e12f4b53b73681fb77f0d2b2032174f72330f1e132646",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "4bb8fa08f4a31e6ed034a78da01eb41a25e4482345caffd61c386859016c602c",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "url": "https://onlyonepoint-lesson-v2.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795489473692000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/af1f0ef354da3273",
+      "releaseTime": "2026-11-24T03:04:33.692Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "27b858df86214604a1d6314c1832fbeb860532067ebba8625b393acb7bbc9a94",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "2195853561ed92b1e45e12f4b53b73681fb77f0d2b2032174f72330f1e132646",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "4bb8fa08f4a31e6ed034a78da01eb41a25e4482345caffd61c386859016c602c",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "authorizedDomains": [
+    "localhost",
+    "onlyonepoint-lesson.firebaseapp.com",
+    "onlyonepoint-lesson.web.app",
+    "onlyonepoint-lesson-v2.web.app"
+  ],
+  "verification": "Published index, bootstrap and JavaScript hashes match the local release build on both existing sites.",
+  "browserChecks": [
+    {
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    },
+    {
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    }
+  ],
+  "inAppBrowserChecks": [
+    {
+      "scenario": "normal",
+      "rendered": true,
+      "retryAvailable": false,
+      "errors": []
+    },
+    {
+      "scenario": "restricted-inapp",
+      "rendered": true,
+      "retryAvailable": false,
+      "errors": []
+    },
+    {
+      "scenario": "hanging-cache",
+      "rendered": true,
+      "retryAvailable": false,
+      "errors": []
+    },
+    {
+      "scenario": "blocked-bootstrap",
+      "rendered": false,
+      "retryAvailable": true,
+      "errors": []
+    }
+  ],
+  "screenshots": [
+    "screenshots/hosting-mobile-20261124.png",
+    "screenshots/hosting-desktop-20261124.png"
+  ],
+  "workflowDeployment": "docs/deployment/2026-11-23-lesson-workflow.json",
+  "appVersion": "20261123-lesson-workflow-v1",
+  "validation": {
+    "flutterTests": 183,
+    "postReviewWidgetTests": 13,
+    "functionsUnitTests": 30,
+    "securityEmulatorTests": 53,
+    "webStartupTests": 5,
+    "flutterAnalyze": "passed",
+    "postReviewTargetedAnalyze": "passed",
+    "releaseBuild": "passed"
+  }
+}

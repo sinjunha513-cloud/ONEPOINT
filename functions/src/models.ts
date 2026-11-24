@@ -4,7 +4,7 @@ export const supportedSports = [
   "태권도", "필라테스", "요가", "탁구", "댄스", "크로스핏", "피겨", "스키", "헬스",
 ] as const;
 
-export type LessonStatus = "pending" | "accepted" | "rejected" | "confirmed" | "completed" | "cancelled";
+export type LessonStatus = "pending" | "accepted" | "rejected" | "confirmed" | "completed" | "cancelled" | "expired";
 export type PaymentStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded" | "partial_refunded";
 export type PayoutStatus = "pending" | "ready" | "completed" | "held" | "cancelled";
 export type ServerTime = Timestamp | FieldValue;
