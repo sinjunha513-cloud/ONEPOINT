@@ -252,3 +252,55 @@ Hosting sites. Headless Chrome checks pass for mobile/desktop login rendering,
 Enter-key validation and four startup scenarios: normal, restricted in-app,
 hanging cache and blocked bootstrap with retry. These emulate browser conditions;
 they do not replace signed-in video playback on a physical phone.
+
+## Android and iOS launch preparation
+
+The launch scope confirmed on November 27 is paid in-person lessons and live
+one-to-one coaching on both Android and iOS. Toss registration has not started.
+The common video feed remains available to members; selling recorded feedback
+or paid access to feed videos is outside this confirmed payment scope.
+
+The native display name is now `onepoint` on both platforms. This preparation
+does not activate payments or constitute a store release. The following items
+remain required before submission:
+
+- Obtain a matching Toss test client/secret pair and verify the real test
+  checkout, server approval, cancellation, partial refund, webhook/reconciliation
+  and return-to-app flows. Keep the secret in Secret Manager. Current gateway
+  configuration, key validation and checkout pages accept test mode only; live
+  keys cannot be substituted without implementing the production environment.
+- Complete the merchant contract/review and confirm the lesson marketplace and
+  coach payout arrangement with Toss. Current payout code calculates readiness
+  but does not transfer money to coach bank accounts. Configure the contracted
+  payout process, refund rules and student-confirmed completion before charging
+  customers. Existing 12% platform fees and the platform-funded monthly coupon
+  are the current product rules, not a quote for PG processing costs.
+- Select final store identifiers and register matching Firebase apps. Android
+  currently uses `com.example.my_first_app`, which matches its bundled Firebase
+  registration. iOS Xcode uses `com.example.myFirstApp`, but Dart Firebase options
+  declare `com.example.onepointLesson`. Resolve this mismatch before iOS testing.
+  Do not rename identifiers without updating their Firebase/OAuth registrations.
+- Configure Android upload signing: release currently uses the debug signing
+  configuration and no local `android/key.properties` is present. Keep signing
+  credentials and keystores outside version control.
+- Set up Apple signing, native Google sign-in and APNs. No
+  `ios/Runner/GoogleService-Info.plist` or notification entitlement is present.
+  Verify photo/video selection permissions for the native upload implementation.
+  Produce the iOS build using macOS/Xcode, locally or on an authorized macOS CI.
+- Prepare business/contact information, accessible privacy/terms/refund pages,
+  content moderation operations, store privacy/data declarations, screenshots,
+  reviewer access and real-device acceptance. Exercise Android internal testing
+  and iOS TestFlight before requesting public distribution.
+- Before paid public distribution, end the operator's unpaid lesson test mode
+  for the intended production booking flow, retaining the scheduled end-time and
+  student confirmation rules. Preserve existing user records during this change.
+
+Relevant official guidance, checked on November 27:
+[Toss API keys](https://docs.tosspayments.com/reference/using-api/api-keys),
+[Toss payouts](https://docs.tosspayments.com/guides/v2/payouts),
+[Apple review guidelines, sections 3.1.3(d/e)](https://developer.apple.com/app-store/review/guidelines/),
+[Google Play payment policy](https://support.google.com/googleplay/android-developer/answer/10281818?hl=en),
+[Flutter Android release](https://docs.flutter.dev/deployment/android) and
+[Flutter iOS release](https://docs.flutter.dev/deployment/ios).
+Google's online one-to-one exception excludes replayable recorded sessions;
+the paid product must be reviewed against its actual delivered service.
