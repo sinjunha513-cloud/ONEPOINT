@@ -1,0 +1,43 @@
+{
+  "project": "onlyonepoint-lesson",
+  "version": "1.1.2+4",
+  "verifiedAt": "2026-11-27T00:07:12.476Z",
+  "function": {
+    "name": "completeLesson",
+    "state": "ACTIVE",
+    "updateTime": "2026-11-27T00:05:41.506414027Z",
+    "region": "asia-northeast3"
+  },
+  "rules": {
+    "matchesLocalSource": true,
+    "ruleset": "projects/onlyonepoint-lesson/rulesets/0db2f9a7-8c59-4d5a-9b6d-8a0b16530a88"
+  },
+  "authenticationProbe": {
+    "httpStatus": 401,
+    "error": "UNAUTHENTICATED"
+  },
+  "rootCause": "Completion looked up normalized Korean badge IDs using the ASCII-only validator for lesson/payment IDs. Its invalid-argument error was rendered by the payment error formatter.",
+  "correction": "A dedicated catalog validator matches the Hangul/lowercase Latin/numeric 1–20-character registration contract. General document/payment ID validation stays strict. Ordinary lesson actions use their own error formatter.",
+  "validation": {
+    "focusedFlutterTests": 35,
+    "functionsUnitTests": 32,
+    "securityEmulatorTests": 64,
+    "webStartupAndPushWorkerTests": 9,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed"
+  },
+  "policy": {
+    "validScheduleRequired": true,
+    "endTimeRequired": true,
+    "studentConfirmationRequired": true,
+    "testModeEnabled": true,
+    "paymentGatewayTestEnabled": false
+  },
+  "sourceSha256": {
+    "functions/src/domain.ts": "9dea282ae8c83ea840f5fd8c06acfb857afafaafab6f1d82f7ca68fe24609d82",
+    "functions/src/lesson_workflow.ts": "7a06bbb04c38d3576d633a3d321fc14263147fe9ff07e5dc03f8e7ad12cffa79",
+    "lib/screens/lesson_requests_screen.dart": "165af6e5cfd935d5f190b226d59a8fae9cf596e91074c44711e3e7c3660a181e",
+    "lib/services/matching_service.dart": "d4b33def31457db9bfbb0a42bf264f001ae9ee45a7246bc6ebc7d0fd357c0bcc"
+  },
+  "verification": "The Korean-badge regression exercises real completion and confirmation handlers in isolated emulators, including exactly-once progress. Production validation uses read-only catalog classification, function/rules metadata and unauthenticated rejection. No production lesson, badge or evaluation was changed during verification."
+}

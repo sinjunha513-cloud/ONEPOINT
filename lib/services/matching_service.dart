@@ -113,3 +113,30 @@ class MatchingService {
     return value.trim();
   }
 }
+
+String lessonWorkflowError(Object error) {
+  if (error is ArgumentError) return error.message.toString();
+  if (error is StateError) return error.message.toString();
+  if (error is FirebaseFunctionsException) {
+    final message = error.message?.trim() ?? '';
+    if (!['internal', 'unknown'].contains(error.code) &&
+        RegExp(r'[가-힣]').hasMatch(message) &&
+        !message.contains('요청을 처리하지 못')) {
+      return message;
+    }
+    return switch (error.code) {
+      'unauthenticated' => '로그인한 뒤 다시 시도해 주세요.',
+      'permission-denied' => '이 레슨을 처리할 권한이 없습니다.',
+      'invalid-argument' => '레슨 정보와 입력한 내용을 확인해 주세요.',
+      'failed-precondition' => '레슨 상태와 예정 종료 시각을 확인해 주세요.',
+      'not-found' => '레슨 정보를 찾을 수 없습니다. 목록을 새로고침해 주세요.',
+      'already-exists' => '이미 접수된 레슨 요청입니다. 최신 내역을 확인해 주세요.',
+      'aborted' => '레슨 정보가 변경되었습니다. 최신 내역을 확인하고 다시 시도해 주세요.',
+      'unavailable' ||
+      'deadline-exceeded' =>
+        '레슨 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+      _ => '레슨 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    };
+  }
+  return '레슨 요청을 처리하지 못했습니다. 연결 상태를 확인해 주세요.';
+}

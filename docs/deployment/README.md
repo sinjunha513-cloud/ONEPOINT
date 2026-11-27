@@ -177,3 +177,25 @@ tests and nine startup/push-worker tests. No production lesson was created or
 completed to verify the change. Future targeted deployments may pass
 `-OnlyFunctions @('completeLesson','respondLessonCompletion','resolveLessonDispute')`
 to `tool/deploy-platform.ps1`; unrelated functions remain untouched.
+
+## November 27: Korean signature badge completion fix
+
+The completion handler used the ASCII-only lesson/payment ID validator for
+signature badge lookups. Catalog IDs are normalized badge names and support
+Hangul, so valid registered Korean badges produced `invalid-argument`. The
+lesson screen then rendered that error through its payment formatter, producing
+the misleading request to check payment information.
+
+v1.1.2 adds a dedicated badge catalog validator matching the existing registration
+and Firestore rules contract: 1–20 Hangul/jamo/lowercase Latin/numeric characters.
+Other document/payment IDs retain their original strict validator. Ordinary
+lesson actions use lesson-specific error messages; actual payment actions retain
+payment-specific guidance. Existing badge/catalog documents need no migration.
+
+Validation includes 35 focused Flutter tests, 32 Functions unit tests, 64 emulator
+security/workflow tests and nine web startup/push-worker tests. The Korean-badge
+regression calls the real completion and confirmation handlers and checks that
+the badge metadata survives and progress is awarded once. Scheduled end-time,
+participant/coach approval and unpaid test-mode guards remain enforced.
+`2026-11-27-completion-fix.json` and `2026-11-27-hosting.json` record deployment
+verification. Production verification did not complete or edit any user lesson.

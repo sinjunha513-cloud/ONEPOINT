@@ -132,7 +132,7 @@
       window.addEventListener('unhandledrejection', fail);
       return {fail, retry() {
         const url = new URL(window.location.href);
-        url.searchParams.set('appVersion', '20261124-unpaid-lessons-v1');
+        url.searchParams.set('appVersion', '20261127-completion-fix-v1');
         url.searchParams.set('render', 'compat');
         window.location.replace(url.toString());
       }};
@@ -145,6 +145,6 @@
     <p id="loading-message" hidden></p>
     <button id="startup-retry" hidden onclick="window.onepointStartup.retry()">다시 시도</button>
   </div>
-  <script src="flutter_bootstrap.js?v=20261124-unpaid-lessons-v1" async onerror="window.onepointStartup.fail()"></script>
+  <script src="flutter_bootstrap.js?v=20261127-completion-fix-v1" async onerror="window.onepointStartup.fail()"></script>
 </body>
 </html>

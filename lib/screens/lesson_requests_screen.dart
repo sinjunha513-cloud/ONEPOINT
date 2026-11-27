@@ -121,6 +121,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
     amount.dispose();
     if (value != null && mounted) {
       await _runAction(id, () => _payments.accept(id, value),
+          paymentAction: true,
           successMessage: '레슨 금액을 확정했습니다. 수강생 결제 후 예약이 확정됩니다.');
     }
   }
@@ -147,6 +148,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
     String requestId,
     Future<void> Function() action, {
     String? successMessage,
+    bool paymentAction = false,
   }) async {
     if (_busyRequests.contains(requestId)) return;
     setState(() => _busyRequests.add(requestId));
@@ -162,7 +164,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
       final message = switch (error) {
         StateError() => error.message.toString(),
         ArgumentError() => error.message.toString(),
-        _ => paymentError(error),
+        _ => paymentAction ? paymentError(error) : lessonWorkflowError(error),
       };
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -212,7 +214,7 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                 ? '레슨 완료를 처리했습니다.'
                 : '수강생에게 참여 확인을 요청했습니다. 확인 후 뱃지와 EXP가 반영됩니다.')),
       );
-    });
+    }, paymentAction: paidLesson);
   }
 
   String _statusLabel(String status) => switch (status) {
@@ -703,7 +705,8 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
                       onPressed: busy
                           ? null
                           : () => _runAction(lesson.id,
-                              () => _payments.cancelUnpaid(lesson.id)),
+                              () => _payments.cancelUnpaid(lesson.id),
+                              paymentAction: true),
                       child: const Text('결제 전 취소')),
                 if (data['paymentId'] is String)
                   TextButton(

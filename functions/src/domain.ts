@@ -9,6 +9,16 @@ export function documentId(value: unknown, name: string): string {
   return value;
 }
 
+// Catalog IDs are normalized badge names, including Hangul. This contract is
+// shared by SignatureBadgeService and firestore.rules; payment/lesson IDs keep
+// the separate strict documentId validator.
+export function signatureBadgeId(value: unknown): string {
+  if (typeof value !== 'string' || !/^[가-힣ㄱ-ㅎㅏ-ㅣa-z0-9]{1,20}$/u.test(value)) {
+    throw new HttpsError('invalid-argument', '시그니처 뱃지 정보를 확인해 주세요.');
+  }
+  return value;
+}
+
 export function requestId(data: unknown, key: "lessonId" | "paymentId"): string {
   if (!data || typeof data !== "object" || Array.isArray(data) ||
       Object.keys(data).some((field) => field !== key)) {

@@ -455,6 +455,27 @@ test('unpaid test mode: ended quote can be evaluated and confirmed once without 
   });
 });
 
+test('regression: Korean-badge completion uses the catalog ID through student confirmation',async()=>{
+  await seed('app_config/features',{lessonTestModeEnabled:true});
+  await seed('signature_badges/라크로케타',{name:'라크로케타',normalizedName:'라크로케타',colorIndex:7,sequence:0});
+  await seed('instructors/coach',{uid:'coach',userId:'coach',name:'coach',sport:'축구',status:'approved',signatureMove:'라크로케타',signatureBadgeId:'라크로케타',signatureBadgeColorIndex:7});
+  await pastLesson('korean_badge_lesson');
+  await call('completeLesson','coach',{lessonId:'korean_badge_lesson',reviewScore:4,feedback:'한글 뱃지 평가',signatureMove:'라크로케타'});
+  let record=(await getDoc(doc(db('student'),'lesson_requests/korean_badge_lesson'))).data();
+  assert.equal(record.completionReview.status,'pending');
+  assert.equal(record.completionReview.attendanceBadge.signatureBadgeId,'라크로케타');
+  assert.equal(record.completionReview.testWithoutPayment,true);
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,0);
+  await call('respondLessonCompletion','student',{lessonId:'korean_badge_lesson',decision:'confirm'});
+  record=(await getDoc(doc(db('student'),'lesson_requests/korean_badge_lesson'))).data();
+  assert.equal(record.status,'completed');assert.equal(record.reviewScore,4);
+  assert.equal(record.attendanceBadge.signatureBadgeId,'라크로케타');
+  assert.equal(record.attendanceBadge.signatureMove,'라크로케타');
+  assert.equal(record.attendanceBadge.signatureBadgeColorIndex,7);
+  await call('respondLessonCompletion','student',{lessonId:'korean_badge_lesson',decision:'confirm'});
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().lessonCount,1);
+});
+
 test('unpaid test mode: server flag, end time, dates and real payment isolation remain required',async()=>{
   await pastLesson('test_quote');
   await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'lesson_requests/test_quote'),{price:50000}));

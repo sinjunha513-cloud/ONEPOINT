@@ -1,7 +1,7 @@
 import {FieldValue, FieldPath, getFirestore, Timestamp, Transaction, DocumentData} from "firebase-admin/firestore";
 import {CallableRequest, HttpsError, onCall} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {documentId} from "./domain";
+import {documentId, signatureBadgeId} from "./domain";
 import {supportedSports} from "./models";
 import {assertNotBlocked} from "./platform_access";
 
@@ -283,7 +283,7 @@ export const completeLesson = onCall(options, async r => {
     if (lesson.completionReview?.status === "disputed") throw new HttpsError("failed-precondition", "이의 제기 검토 또는 합의된 일정 변경 후 다시 요청해 주세요.");
     if (lesson.completionReview?.status === "pending") return {lessonId: id, status: "pending"};
     const badgeId = profile.signatureBadgeId ?? lesson.signatureBadgeId;
-    const badge = badgeId ? (await tx.get(db().collection("signature_badges").doc(documentId(badgeId, "badgeId")))).data() : null;
+    const badge = badgeId ? (await tx.get(db().collection("signature_badges").doc(signatureBadgeId(badgeId)))).data() : null;
     if (badgeId && !badge) throw new HttpsError("failed-precondition", "시그니처 뱃지를 다시 등록해 주세요.");
     const signature = badge?.name ?? profile.signatureMove ?? lesson.signatureMove;
     if (typeof signature !== "string" || !signature.trim() || signature.length > 40 || (data.signatureMove && data.signatureMove !== signature)) throw new HttpsError("failed-precondition", "시그니처 기술을 확인해 주세요.");

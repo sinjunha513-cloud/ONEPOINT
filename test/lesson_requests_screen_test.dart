@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +35,9 @@ void main() {
   }
 
   Future<void> showLessons(WidgetTester tester, String uid,
-      {Size size = const Size(900, 1000), double textScale = 1}) async {
+      {Size size = const Size(900, 1000),
+      double textScale = 1,
+      FirebaseFunctionsException? completionError}) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(MaterialApp(
@@ -52,6 +55,7 @@ void main() {
             // the actual server handlers in security-tests.
             final ref = firestore.doc('lesson_requests/${data['lessonId']}');
             if (name == 'completeLesson') {
+              if (completionError != null) throw completionError;
               await ref.update({
                 'completionReview': {
                   'status': 'pending',
@@ -347,6 +351,40 @@ void main() {
           .data()!['lessonCount'],
       1,
     );
+  });
+
+  testWidgets(
+      'an unpaid completion failure shows a lesson error instead of a payment error',
+      (tester) async {
+    await firestore
+        .doc('app_config/features')
+        .set({'lessonTestModeEnabled': true});
+    await addLesson();
+    await firestore
+        .doc('lesson_requests/lesson')
+        .update({'status': 'accepted'});
+    await showLessons(tester, 'coach',
+        completionError: FirebaseFunctionsException(
+            code: 'invalid-argument',
+            message: 'badgeId must be a valid document ID.'));
+    await tester.tap(find.text('결제 없이 완료·평가'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byType(DropdownButtonFormField<double>));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('4점').last);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.ensureVisible(
+        find.byKey(const ValueKey('lesson-attendance-confirmation')));
+    await tester
+        .tap(find.byKey(const ValueKey('lesson-attendance-confirmation')));
+    await tester.pump();
+    await tester.tap(find.text('평가하고 확인 요청'));
+    await tester.pumpAndSettle();
+    expect(find.text('레슨 정보와 입력한 내용을 확인해 주세요.'), findsOneWidget);
+    expect(find.text('입력한 결제 정보를 확인해 주세요.'), findsNothing);
+    expect(
+        (await firestore.doc('lesson_requests/lesson').get()).data()!['status'],
+        'accepted');
   });
 
   testWidgets(

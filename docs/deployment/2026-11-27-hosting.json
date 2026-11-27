@@ -1,0 +1,121 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-27T00:08:15.064Z",
+  "primaryUrl": "https://onlyonepoint-lesson.web.app",
+  "sites": [
+    {
+      "site": "onlyonepoint-lesson",
+      "url": "https://onlyonepoint-lesson.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795738033235000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/6a3e4e4ce899106c",
+      "releaseTime": "2026-11-27T00:07:13.235Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "9fe03731da1dcc7b9dd8710a4bd5adaa8a9ff2c47ff69feaa7c5196a3f20cca0",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "5c6389bb9e7e81488d42732003acb8b2c7a3b0d6fbc7ceb5e2676f9d72820970",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "8ed0af82d4f2e87d083200dffac61b9609686bfd3e7ca28a4aca9be17c26c7b2",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "onepoint-push-sw.js",
+          "status": 200,
+          "sha256": "e6ee8a86ea1b1218a1507ab4f33d97b03a722eda86a4a27f510410ec67bc7cf8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "url": "https://onlyonepoint-lesson-v2.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795738033405000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/a8fb12fd402870f0",
+      "releaseTime": "2026-11-27T00:07:13.405Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "9fe03731da1dcc7b9dd8710a4bd5adaa8a9ff2c47ff69feaa7c5196a3f20cca0",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "5c6389bb9e7e81488d42732003acb8b2c7a3b0d6fbc7ceb5e2676f9d72820970",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "8ed0af82d4f2e87d083200dffac61b9609686bfd3e7ca28a4aca9be17c26c7b2",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "onepoint-push-sw.js",
+          "status": 200,
+          "sha256": "e6ee8a86ea1b1218a1507ab4f33d97b03a722eda86a4a27f510410ec67bc7cf8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "authorizedDomains": [
+    "localhost",
+    "onlyonepoint-lesson.firebaseapp.com",
+    "onlyonepoint-lesson.web.app",
+    "onlyonepoint-lesson-v2.web.app"
+  ],
+  "verification": "Published index, bootstrap, application bundle and push worker hashes match the local release build on both existing sites.",
+  "browserChecks": [
+    {
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    },
+    {
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    }
+  ],
+  "version": {
+    "app_name": "onepoint_lesson",
+    "version": "1.1.2",
+    "build_number": "4",
+    "package_name": "onepoint_lesson"
+  },
+  "validation": {
+    "focusedFlutterTests": 35,
+    "functionsUnitTests": 32,
+    "securityEmulatorTests": 64,
+    "webStartupAndPushWorkerTests": 9,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed"
+  },
+  "scope": "Korean catalog badge completion and correct error messages for unpaid lesson actions."
+}
