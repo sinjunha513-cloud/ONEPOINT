@@ -26,7 +26,15 @@ before(async () => {
   env = await initializeTestEnvironment({projectId, firestore: {host: '127.0.0.1', port: 8080, rules: readFileSync('../firestore.rules', 'utf8')}, storage: {host: '127.0.0.1', port: 9199, rules: readFileSync('../storage.rules', 'utf8')}});
 });
 beforeEach(async () => {
-  await env.clearFirestore(); await env.clearStorage();
+  await env.clearFirestore();
+  // clearStorage() lists root objects only; nested media must also be removed.
+  await env.withSecurityRulesDisabled(async context => {
+    async function clearTree(folder) {
+      const {items,prefixes}=await folder.listAll();
+      await Promise.all([...items.map(item=>item.delete()),...prefixes.map(clearTree)]);
+    }
+    await clearTree(context.storage(`${projectId}.appspot.com`).ref());
+  });
   for (const [uid, extra] of Object.entries({student: {}, coach: {role:'coach'}, other: {}, admin: {role:'admin'}, suspended: {accountStatus:'suspended'}, suspendedAdmin: {role:'admin', accountStatus:'suspended'}, incomplete: {profileCompleted:false, requestedRole:'coach', consentedAt:new Date(0)}})) await seed(`users/${uid}`, profile(uid, extra));
   await seed('instructors/coach', {uid:'coach',userId:'coach',name:'coach',sport:'축구',status:'approved',career:'experience',rating:'0.0',signatureMove:'kick'});
   await seed('lesson_requests/lesson', lesson);
@@ -269,6 +277,98 @@ test('release: public feed is redacted, hidden on moderation, and playback check
   await assert.rejects(call('setFeedLiked','student',{videoId:'incomplete-author',liked:true}),{code:'failed-precondition'});
 });
 const nativeDevice=n=>({provider:'fcm',token:'test_registration_token_'+String(n).padStart(25,'a')});
+
+async function publicFeedback(videoId='feedback_public') {
+  const storagePath=`lesson_feedback/lesson/student/${videoId}.mp4`;
+  await assertSucceeds(uploadBytes(ref(store('student'),storagePath),bytes,{contentType:'video/mp4'}));
+  const input={lessonId:'lesson',videoId,storagePath,title:'패스 연습 피드백',description:'공개 연습 영상'};
+  return {input,...await call('registerLessonFeedback','student',input)};
+}
+test('public feedback: unrelated members can discover and play a published clip without private lesson metadata',async()=>{
+  const published=await publicFeedback();
+  const visible=(await getDoc(doc(db('other'),`public_feed_videos/${published.feedId}`))).data();
+  assert.equal(visible.title,'패스 연습 피드백');assert.equal(visible.userName,'student');
+  assert.equal(visible.contentType,'feedback');
+  for(const field of ['lessonId','sourceLessonId','sourceVideoId','participantIds','studentUid','email','storagePath'])assert.equal(visible[field],undefined);
+  await assertFails(getDoc(doc(db('other'),'lesson_requests/lesson')));
+  await assertFails(getDoc(doc(db('other'),'lesson_requests/lesson/feedback_videos/feedback_public')));
+  await assertFails(getDoc(doc(db('other'),`feed_videos/${published.feedId}`)));
+  await assertFails(getBytes(ref(store('other'),published.input.storagePath)));
+  assert.equal(await require('../functions/lib/src/media_playback.js').authorizedMediaPath('other',{kind:'feed',videoId:published.feedId}),published.input.storagePath);
+  for(const uid of ['suspended','incomplete'])await assert.rejects(require('../functions/lib/src/media_playback.js').authorizedMediaPath(uid,{kind:'feed',videoId:published.feedId}),{code:'permission-denied'});
+});
+test('public feedback: retries preserve likes; only uploader can archive/repost and moderation cannot be bypassed',async()=>{
+  const p=await publicFeedback();
+  await call('setFeedLiked','other',{videoId:p.feedId,liked:true});
+  assert.equal((await call('registerLessonFeedback','student',p.input)).feedId,p.feedId);
+  assert.equal((await getDoc(doc(db('student'),`feed_videos/${p.feedId}`))).data().likes,1);
+  await assert.rejects(call('setFeedbackVisibility','coach',{lessonId:'lesson',videoId:p.videoId,isPublic:false}),{code:'permission-denied'});
+  await call('setFeedbackVisibility','student',{lessonId:'lesson',videoId:p.videoId,isPublic:false});
+  assert.equal((await getDoc(doc(db('other'),`public_feed_videos/${p.feedId}`))).exists(),false);
+  await require('../functions/lib/src/community.js').projectFeed(p.feedId);
+  assert.equal((await getDoc(doc(db('other'),`public_feed_videos/${p.feedId}`))).exists(),false);
+  await assert.rejects(require('../functions/lib/src/media_playback.js').authorizedMediaPath('other',{kind:'feed',videoId:p.feedId}),{code:'permission-denied'});
+  await assert.rejects(call('setFeedLiked','coach',{videoId:p.feedId,liked:true}),{code:'failed-precondition'});
+  // A delayed registration retry cannot undo the uploader's archive action.
+  assert.equal((await call('registerLessonFeedback','student',p.input)).visibility,'private');
+  await call('setFeedbackVisibility','student',{lessonId:'lesson',videoId:p.videoId,isPublic:true});
+  assert.equal((await getDoc(doc(db('other'),`public_feed_videos/${p.feedId}`))).data().likes,1);
+  const report=await call('submitReport','other',{targetType:'feed',targetId:p.feedId,reason:'확인 요청',details:'',requestId:'public_feedback_report'});
+  await call('resolveReport','admin',{...report,decision:'hide',reason:'운영 정책 검토'});
+  await call('setFeedbackVisibility','student',{lessonId:'lesson',videoId:p.videoId,isPublic:false});
+  await assert.rejects(call('setFeedbackVisibility','student',{lessonId:'lesson',videoId:p.videoId,isPublic:true}),{code:'failed-precondition'});
+  assert.equal((await getDoc(doc(db('student'),`lesson_requests/lesson/feedback_videos/${p.videoId}`))).data().moderationStatus,'hidden');
+});
+test('public feedback: invalid uploads, forged sources, nonparticipants and upload shutdown are rejected',async()=>{
+  const missing={lessonId:'lesson',videoId:'missing',storagePath:'lesson_feedback/lesson/student/missing.mp4',title:'제목',description:''};
+  await assert.rejects(call('registerLessonFeedback','student',missing),{code:'failed-precondition'});
+  await assert.rejects(call('registerLessonFeedback','other',missing),{code:'invalid-argument'});
+  await env.withSecurityRulesDisabled(c=>uploadBytes(ref(c.storage(`${projectId}.appspot.com`),'lesson_feedback/lesson/other/owned.mp4'),bytes,{contentType:'video/mp4'}));
+  await assert.rejects(call('registerLessonFeedback','other',{...missing,videoId:'owned',storagePath:'lesson_feedback/lesson/other/owned.mp4'}),{code:'permission-denied'});
+  await assertFails(setDoc(doc(db('student'),'feed_videos/feedback_reserved'),feed));
+  await assertFails(setDoc(doc(db('student'),'lesson_requests/lesson/feedback_videos/forged_public'),{uploaderUid:'student',uploaderName:'student',lessonId:'lesson',storagePath:'lesson_feedback/lesson/student/missing.mp4',description:'',createdAt:serverTimestamp(),visibility:'public'}));
+  const path='lesson_feedback/lesson/student/paused.mp4';
+  await assertSucceeds(uploadBytes(ref(store('student'),path),bytes,{contentType:'video/mp4'}));
+  await seed('app_config/features',{videoUploadsEnabled:false});
+  await assert.rejects(call('registerLessonFeedback','student',{...missing,videoId:'paused',storagePath:path}),{code:'failed-precondition'});
+  await assertFails(uploadBytes(ref(store('student'),'lesson_feedback/lesson/student/stopped.mp4'),bytes,{contentType:'video/mp4'}));
+});
+test('public feedback: deleting from either view removes both records, bytes and likes exactly once',async()=>{
+  for(const kind of ['feed','feedback']){
+    const p=await publicFeedback('delete_'+kind);
+    await call('setFeedLiked','other',{videoId:p.feedId,liked:true});
+    await call('deleteVideo','student',kind==='feed'?{kind,videoId:p.feedId}:{kind,lessonId:'lesson',videoId:p.videoId});
+    assert.equal((await getDoc(doc(db('other'),`public_feed_videos/${p.feedId}`))).exists(),false);
+    assert.equal((await getDoc(doc(db('student'),`lesson_requests/lesson/feedback_videos/${p.videoId}`))).exists(),false);
+    assert.equal((await getDoc(doc(db('admin'),`feed_videos/${p.feedId}`))).exists(),false);
+    assert.equal((await getDoc(doc(db('student'),'users/student'))).data().feedLikeCount,0);
+    await assert.rejects(getBytes(ref(store('student'),p.input.storagePath)),{code:'storage/object-not-found'});
+  }
+});
+test('public feedback: missing-source cleanup and stale projection events cannot republish deleted content',async()=>{
+  const p=await publicFeedback();
+  await call('setFeedLiked','other',{videoId:p.feedId,liked:true});
+  await env.withSecurityRulesDisabled(c=>deleteDoc(doc(c.firestore(),`lesson_requests/lesson/feedback_videos/${p.videoId}`)));
+  const media=require('../functions/lib/src/media_playback.js');
+  await assert.rejects(media.authorizedMediaPath('other',{kind:'feed',videoId:p.feedId}),{code:'permission-denied'});
+  await require('../functions/lib/src/community.js').projectFeed(p.feedId);
+  assert.equal((await getDoc(doc(db('other'),`public_feed_videos/${p.feedId}`))).exists(),false);
+  await require('../functions/lib/src/feedback_feed.js').removeDeletedFeedback('lesson',p.videoId);
+  await require('../functions/lib/src/feedback_feed.js').removeDeletedFeedback('lesson',p.videoId);
+  assert.equal((await getDoc(doc(db('admin'),`feed_videos/${p.feedId}`))).exists(),false);
+  assert.equal((await getDoc(doc(db('student'),'users/student'))).data().feedLikeCount,0);
+});
+test('public feedback: old private clips require uploader publication and blocking applies to public playback',async()=>{
+  const path='lesson_feedback/lesson/student/legacy.mp4';
+  await assertSucceeds(uploadBytes(ref(store('student'),path),bytes,{contentType:'video/mp4'}));
+  await seed('lesson_requests/lesson/feedback_videos/legacy',{uploaderUid:'student',uploaderName:'student',storagePath:path,description:'기존 영상',createdAt:new Date()});
+  assert.equal((await getDocs(collection(db('other'),'public_feed_videos'))).size,0);
+  await assert.rejects(call('setFeedbackVisibility','other',{lessonId:'lesson',videoId:'legacy',isPublic:true}),{code:'permission-denied'});
+  const p=await call('setFeedbackVisibility','student',{lessonId:'lesson',videoId:'legacy',isPublic:true});
+  assert.equal((await getDoc(doc(db('other'),`public_feed_videos/${p.feedId}`))).data().description,'기존 영상');
+  await call('setUserBlocked','other',{targetUid:'student',blocked:true});
+  await assert.rejects(require('../functions/lib/src/media_playback.js').authorizedMediaPath('other',{kind:'feed',videoId:p.feedId}),{code:'permission-denied'});
+});
 test('release: push registrations transfer safely, reject arbitrary URLs and remain server-private',async()=>{
   const device=await call('registerPushDevice','student',nativeDevice(1));
   for(const uid of ['student','coach','admin',null])await assertFails(getDoc(doc(db(uid),`push_devices/${device.deviceId}`)));
@@ -948,8 +1048,8 @@ test('original feature flag admin writes/types and upload shutdown are preserved
   await assertFails(updateDoc(adminConfig,{unknownField:true}));
   await assertFails(setDoc(doc(db('student'),'feed_videos/disabled'),feed));
   await assertFails(uploadBytes(ref(store('student'),'videos/student/disabled.mp4'),bytes,{contentType:'video/mp4'}));
-  // The original flag controls shortform uploads, not lesson feedback.
-  await assertSucceeds(uploadBytes(ref(store('student'),'lesson_feedback/lesson/student/feedback.mp4'),bytes,{contentType:'video/mp4'}));
+  // New lesson feedback is public too, so the upload shutdown covers both paths.
+  await assertFails(uploadBytes(ref(store('student'),'lesson_feedback/lesson/student/feedback.mp4'),bytes,{contentType:'video/mp4'}));
   await assertSucceeds(updateDoc(adminConfig,{videoUploadsEnabled:true,paymentTestEnabled:true}));
   await assertSucceeds(setDoc(doc(db('student'),'feed_videos/enabled'),feed));
 });

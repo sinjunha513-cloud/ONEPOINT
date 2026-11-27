@@ -2,7 +2,7 @@
 {{flutter_build_config}}
 
 (async function startOnepoint() {
-  const version = '20261127-completion-fix-v1';
+  const version = '20261127-public-feedback-v1';
   const legacyWorker = worker => /\/flutter_service_worker\.js(?:\?|$)/.test(worker?.scriptURL || '');
   async function cleanLegacyCache() {
     let controlled = false;

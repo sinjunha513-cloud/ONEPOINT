@@ -33,6 +33,7 @@ class ShortformFeedScreen extends StatefulWidget {
 
 class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
   int _currentPage = 0;
+  PageController _pageController = PageController();
   late final FirebaseFirestore _firestore =
       widget.firestore ?? FirebaseFirestore.instance;
   late final FeedService _feedService = widget.feedService ?? FeedService();
@@ -55,7 +56,12 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
     super.initState();
     _firstPage = _fetchFirst();
     _blocks = _community.blocked().listen((s) {
-      if (mounted) setState(() => _blocked = s.docs.map((d) => d.id).toSet());
+      final next = s.docs.map((d) => d.id).toSet();
+      if (mounted &&
+          (next.length != _blocked.length || !next.containsAll(_blocked))) {
+        _blocked = next;
+        _refresh();
+      }
     }, onError: (Object _) {});
   }
 
@@ -71,13 +77,22 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
   }
 
   void _refresh() {
+    final old = _pageController;
     setState(() {
+      _pageController = PageController();
       _extra.clear();
       _currentPage = 0;
       _loadingMore = false;
       _hasMore = false;
       _firstPage = _fetchFirst();
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+  }
+
+  @override
+  void didUpdateWidget(covariant ShortformFeedScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) _refresh();
   }
 
   Future<void> _more() async {
@@ -107,6 +122,7 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
   @override
   void dispose() {
     _blocks?.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -164,7 +180,7 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: const OnepointAppBar(
-            title: '레슨 영상 피드', sectionSubtitle: 'TRAINING FEED'),
+            title: '공개 영상 피드', sectionSubtitle: 'TRAINING FEED'),
         body: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
           future: _firstPage,
           builder: (context, snapshot) {
@@ -199,12 +215,16 @@ class _ShortformFeedScreenState extends State<ShortformFeedScreen> {
               );
             }
             return PageView.builder(
-              key: ValueKey('shortform-pages-${docs.length}'),
+              key: ValueKey('shortform-pages-$_version'),
+              controller: _pageController,
               scrollDirection: Axis.vertical,
               pageSnapping: true,
               physics: const BouncingScrollPhysics(),
               itemCount: docs.length,
-              onPageChanged: (index) => setState(() => _currentPage = index),
+              onPageChanged: (index) {
+                setState(() => _currentPage = index);
+                if (_hasMore && index >= docs.length - 3) unawaited(_more());
+              },
               itemBuilder: (context, index) {
                 final data = docs[index].data();
                 final url = data['videoUrl'] as String? ?? '';

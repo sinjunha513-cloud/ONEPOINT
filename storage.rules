@@ -38,6 +38,7 @@ service firebase.storage {
     match /lesson_feedback/{lessonId}/{uid}/{filename} {
       allow read: if lessonParticipant(lessonId) || admin();
       allow create: if lessonParticipant(lessonId)
+        && videoUploadsEnabled()
         && request.auth.uid == uid
         && resource == null
         && firestore.get(/databases/(default)/documents/lesson_requests/$(lessonId)).data.status in ['accepted', 'confirmed', 'completed']

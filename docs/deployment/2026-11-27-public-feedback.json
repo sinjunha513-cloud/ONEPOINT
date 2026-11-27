@@ -1,0 +1,123 @@
+{
+  "project": "onlyonepoint-lesson",
+  "version": "1.2.0+5",
+  "verifiedAt": "2026-11-27T00:34:23.420Z",
+  "functions": [
+    {
+      "name": "registerLessonFeedback",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:54.048131526Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "getMediaPlayback",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:53.896255581Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "removeFeedbackFeed",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:34:10.077764725Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "setFeedLiked",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:55.465253025Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "projectPublicFeed",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:54.294614726Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "resolveReport",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:54.167200244Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "setFeedbackVisibility",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:53.088128707Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "refreshAuthorFeed",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:54.560971132Z",
+      "region": "asia-northeast3"
+    },
+    {
+      "name": "deleteVideo",
+      "state": "ACTIVE",
+      "updateTime": "2026-11-27T00:33:53.851917666Z",
+      "region": "asia-northeast3"
+    }
+  ],
+  "rules": [
+    {
+      "file": "firestore.rules",
+      "ruleset": "projects/onlyonepoint-lesson/rulesets/ea55c9a9-d6a6-481e-bade-39a960784daa",
+      "matchesLocalSource": true
+    },
+    {
+      "file": "storage.rules",
+      "ruleset": "projects/onlyonepoint-lesson/rulesets/1b120d6b-3e81-479a-bf28-51bfaf758ecc",
+      "matchesLocalSource": true
+    }
+  ],
+  "authenticationProbes": [
+    {
+      "name": "registerLessonFeedback",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "getMediaPlayback",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "name": "setFeedbackVisibility",
+      "httpStatus": 401,
+      "error": "UNAUTHENTICATED"
+    }
+  ],
+  "validation": {
+    "flutterTests": 199,
+    "functionsUnitTests": 32,
+    "securityEmulatorTests": 70,
+    "webStartupAndPushWorkerTests": 9,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed"
+  },
+  "scope": "New lesson feedback is atomically published into the member-wide vertical video feed. Uploaders can archive/repost their clips; private lesson details remain participant-only.",
+  "policy": {
+    "audience": "active completed signed-in members",
+    "singleStorageObject": true,
+    "legacyClipsRequireUploaderPublication": true,
+    "rawLessonFeedbackReadsRemainPrivate": true,
+    "moderationCannotBeBypassedByReposting": true,
+    "signedUrlLifetimeMinutes": 15,
+    "lessonTestModeEnabled": true,
+    "paymentGatewayTestEnabled": false
+  },
+  "sourceSha256": {
+    "functions/src/feedback_feed.ts": "2b648aceaea2da404630ffe39ee9e3235e43cf5086b8bc86e960cb175b5495c1",
+    "functions/src/feed_projection.ts": "6c97a17307a69cf3244792b095d18938f50b38590d7bf1e637d941c372bd64a2",
+    "functions/src/community.ts": "9c19bb814804f07f13ac5d5dbae4859c8efc453ea5f75545d3460be7e8d0e13e",
+    "functions/src/media_playback.ts": "a6878b2bc8e175d03f7fb152c1040eb2e453fd46bf1a4f55be5e496169a23547",
+    "functions/src/security_workflows.ts": "03675eb9cbda90dab1525ff7e4034e7cc0cf820a9777d0b11cd434e234d577a1",
+    "lib/services/video_upload_service.dart": "202fb88dbdb12a94026b0301fdf603ca9900b54415722fafb788fcce67235a2d",
+    "lib/screens/video_upload_screen.dart": "63deb2b3c0cd1a1a34838a92b2ca5b94f708a62060dd471ac13095a4db6ff663",
+    "lib/screens/lesson_feedback_videos_screen.dart": "e410244f1c5fe520563732c36655a53ffca0ce789dd9447b823746da84eb5639",
+    "lib/screens/shortform_feed_screen.dart": "cfc5dd119e0837e40fad152b155d71a50e6cba337d1c4143896e17fdcd2085b8",
+    "firestore.rules": "7b0f472e80780018b46f0b1b4f168a44c0edd47dce5409436de91a0a263f5a29",
+    "storage.rules": "6ffbb449a275945b7e1268e5a2a1b789c60cb9388bf2990b91b2fd1d65140ba0"
+  },
+  "verification": "Real handlers, media metadata and Firestore/Storage authorization are tested in isolated emulators. Production verification reads metadata/rules/configuration and probes unauthenticated rejection; it does not create users, videos or lessons."
+}

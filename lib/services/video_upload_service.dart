@@ -87,6 +87,7 @@ class VideoUploadService {
   Future<String> uploadLessonFeedback({
     required XFile videoFile,
     required String lessonId,
+    String title = '',
     String description = '',
     UploadProgress? onProgress,
     UploadTaskReady? onTaskReady,
@@ -99,12 +100,8 @@ class VideoUploadService {
     }
     final user = _signedInUser();
     await validateVideo(videoFile);
-    final results = await Future.wait([
-      _firestore.collection('lesson_requests').doc(lessonId).get(),
-      _firestore.collection('users').doc(user.uid).get(),
-    ]);
-    final lesson = results[0];
-    final profile = results[1];
+    final lesson =
+        await _firestore.collection('lesson_requests').doc(lessonId).get();
     final lessonData = lesson.data();
     if (!lesson.exists || lessonData == null) {
       throw StateError('연결된 레슨을 찾을 수 없습니다.');
@@ -118,9 +115,18 @@ class VideoUploadService {
         .contains(lessonData['status'])) {
       throw StateError('수락 또는 확정된 레슨에만 피드백 영상을 올릴 수 있습니다.');
     }
+    final cleanTitle = title.trim().isEmpty
+        ? '${lessonData['sport'] ?? '레슨'} 피드백'
+        : title.trim();
+    if (cleanTitle.length > 120) throw StateError('제목은 120자 이내로 입력해 주세요.');
+    final videoRef = _firestore
+        .collection('lesson_requests')
+        .doc(lessonId)
+        .collection('feedback_videos')
+        .doc();
     final extension = _extension(videoFile);
     final ref = _storage.ref().child(
-        'lesson_feedback/$lessonId/${user.uid}/${DateTime.now().microsecondsSinceEpoch}.$extension');
+        'lesson_feedback/$lessonId/${user.uid}/${videoRef.id}.$extension');
     final url = await _upload(
       videoFile,
       ref,
@@ -129,24 +135,48 @@ class VideoUploadService {
       onTaskReady: onTaskReady,
     );
     try {
-      await _firestore
-          .collection('lesson_requests')
-          .doc(lessonId)
-          .collection('feedback_videos')
-          .add({
-        'uploaderUid': user.uid,
-        'uploaderName':
-            _text(profile.data()?['name']) ?? user.displayName ?? '레슨 참여자',
+      await _functions.httpsCallable('registerLessonFeedback').call({
         'lessonId': lessonId,
+        'videoId': videoRef.id,
         'storagePath': ref.fullPath,
+        'title': cleanTitle,
         'description': description.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
       });
-    } catch (_) {
-      await _deleteQuietly(ref);
+    } catch (error) {
+      // A lost response can arrive after registration committed. Keep the
+      // shared file if registration succeeded or its outcome is still unknown.
+      try {
+        final stored = (await videoRef.get()).data();
+        if (stored?['uploaderUid'] == user.uid &&
+            stored?['storagePath'] == ref.fullPath &&
+            stored?['deleting'] != true) {
+          return url;
+        }
+      } catch (_) {}
+      if (error is FirebaseFunctionsException &&
+          const [
+            'invalid-argument',
+            'permission-denied',
+            'failed-precondition',
+            'not-found',
+            'unimplemented'
+          ].contains(error.code)) {
+        await _deleteQuietly(ref);
+      }
       rethrow;
     }
     return url;
+  }
+
+  Future<void> setFeedbackPublic(
+      {required String lessonId,
+      required String videoId,
+      required bool isPublic}) async {
+    _validateDocumentId(lessonId, '레슨');
+    _validateDocumentId(videoId, '영상');
+    await _functions
+        .httpsCallable('setFeedbackVisibility')
+        .call({'lessonId': lessonId, 'videoId': videoId, 'isPublic': isPublic});
   }
 
   Future<void> deleteFeedVideo(String videoId) async {

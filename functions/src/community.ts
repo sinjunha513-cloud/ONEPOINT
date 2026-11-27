@@ -4,6 +4,8 @@ import {onDocumentWritten} from 'firebase-functions/v2/firestore';
 import {documentId} from './domain';
 import {activeMember, authenticatedInput, requiredReason} from './platform_access';
 import {deliverNotification} from './notifications';
+import {publicFeedData,isPublicFeed} from './feed_projection';
+import {validFeedbackFeed,feedbackOrigin} from './feedback_feed';
 
 const options={region:'asia-northeast3',maxInstances:2};
 const db=()=>getFirestore(), stamp=()=>FieldValue.serverTimestamp();
@@ -57,10 +59,13 @@ export const resolveReport=onCall(options,async r=>{
     const targetRef=db().doc(`users/${documentId(targetUid,'reportedUid')}`), target=(await tx.get(targetRef)).data();
     const videoRef=report.targetType==='feed'?db().doc(`feed_videos/${documentId(report.targetId,'targetId')}`):null;
     const video=videoRef?(await tx.get(videoRef)).data():null;
+    const origin=video?feedbackOrigin(video):null;
+    const feedback=origin?(await tx.get(origin.ref)).data():null;
     if(data.decision==='hide'&&(!videoRef||video?.userId!==targetUid))throw new HttpsError('failed-precondition','영상 신고에서만 해당 영상을 숨길 수 있습니다.');
     if(data.decision==='warn'&&target)tx.update(targetRef,{warningCount:FieldValue.increment(1)});
     if(data.decision==='hide'){
       tx.update(videoRef!,{moderationStatus:'hidden',moderationReason:note,moderatedBy:uid,moderatedAt:stamp()});
+      if(origin&&feedback)tx.update(origin.ref,{moderationStatus:'hidden'});
       tx.delete(db().doc(`public_feed_videos/${videoRef!.id}`));
     }
     tx.update(ref,{status:'resolved',decision:data.decision,resolutionReason:note,resolvedBy:uid,resolvedAt:stamp()});
@@ -84,9 +89,8 @@ export async function projectFeed(id: string) {
     const source=(await tx.get(db().doc(`feed_videos/${id}`))).data();
     const user=typeof source?.userId==='string'?(await tx.get(db().doc(`users/${source.userId}`))).data():null;
     const ref=db().doc(`public_feed_videos/${id}`);
-    if(!source||source.deleting||source.moderationStatus==='hidden'||!user||user.profileCompleted!==true||(user.accountStatus??'active')!=='active'){tx.delete(ref);return;}
-    const fields=['userId','title','description','storagePath','createdAt','likes'];
-    tx.set(ref,{...Object.fromEntries(fields.filter(k=>source[k]!==undefined).map(k=>[k,source[k]])),userName:user.name??'회원',videoUrl:source.storagePath??source.videoUrl});
+    if(!isPublicFeed(source,user)||!await validFeedbackFeed(tx,id,source!)){tx.delete(ref);return;}
+    tx.set(ref,publicFeedData(source!,user!));
   });
 }
 export const projectPublicFeed=onDocumentWritten({...options,document:'feed_videos/{id}'},e=>projectFeed(e.params.id));

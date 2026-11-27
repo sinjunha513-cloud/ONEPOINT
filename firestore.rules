@@ -371,6 +371,7 @@ service cloud.firestore {
       }
       allow read: if signedIn() && (participant(parentLesson()) || admin());
       allow create: if participant(parentLesson())
+        && videoUploadsEnabled()
         && parentLesson().status in ['accepted', 'confirmed', 'completed']
         && request.resource.data.keys().hasOnly([
           'uploaderUid', 'uploaderName', 'lessonId', 'storagePath',
@@ -447,6 +448,7 @@ service cloud.firestore {
     match /feed_videos/{videoId} {
       allow read: if signedIn() && (own(resource.data.userId) || admin());
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid
+        && !videoId.matches('feedback_.*')
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && videoUploadsEnabled()
         && request.resource.data.keys().hasOnly(['userId', 'userName', 'title', 'description', 'videoUrl', 'storagePath', 'likes', 'createdAt'])
@@ -462,6 +464,8 @@ service cloud.firestore {
         let before = user(resource.data.userId);
         let after = getAfter(/databases/$(database)/documents/users/$(resource.data.userId)).data;
         return signedIn() && request.auth.uid != resource.data.userId && delta != 0
+          && resource.data.get('deleting', false) != true
+          && resource.data.get('visibility', 'public') != 'private'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
           && request.resource.data.likes == nonnegative(resource.data.get('likes', 0) + delta)
           && after.lastFeedLikeVideoId == videoId

@@ -15,3 +15,4 @@ export {getPushConfiguration,registerPushDevice,unregisterPushDevice,setPushPref
 export {requestAccountDeletion,beginAccountCleanup,retryAccountCleanup} from './account_lifecycle';
 export {getMediaPlayback} from './media_playback';
 export {syncMyActivity,syncLessonActivity} from './activity_stats';
+export {registerLessonFeedback,setFeedbackVisibility,removeFeedbackFeed} from './feedback_feed';

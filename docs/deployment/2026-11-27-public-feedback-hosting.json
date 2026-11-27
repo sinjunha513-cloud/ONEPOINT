@@ -1,0 +1,148 @@
+{
+  "project": "onlyonepoint-lesson",
+  "verifiedAt": "2026-11-27T00:34:41.282Z",
+  "primaryUrl": "https://onlyonepoint-lesson.web.app",
+  "sites": [
+    {
+      "site": "onlyonepoint-lesson",
+      "url": "https://onlyonepoint-lesson.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/channels/live/releases/1795739672077000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson/versions/08b2266fd9caa7ae",
+      "releaseTime": "2026-11-27T00:34:32.077Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "0148b9f51cf525363dfa4604fa24a6ad20ea59ecc4241d7cd380a33181f9764e",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "48b19d13aacdc492e602541a3a9ffc35d51ee2548f754f1aa0749fa8dd40f3b8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "fffff7b7ee84fa14e15f4c1a441e58e98b3157819e59eb1c41376a0746cd05b0",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "onepoint-push-sw.js",
+          "status": 200,
+          "sha256": "e6ee8a86ea1b1218a1507ab4f33d97b03a722eda86a4a27f510410ec67bc7cf8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "site": "onlyonepoint-lesson-v2",
+      "url": "https://onlyonepoint-lesson-v2.web.app",
+      "release": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/channels/live/releases/1795739672203000",
+      "version": "projects/onlyonepoint-lesson/sites/onlyonepoint-lesson-v2/versions/93fc563b0f758e61",
+      "releaseTime": "2026-11-27T00:34:32.203Z",
+      "checks": [
+        {
+          "file": "index.html",
+          "status": 200,
+          "sha256": "0148b9f51cf525363dfa4604fa24a6ad20ea59ecc4241d7cd380a33181f9764e",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "main.dart.js",
+          "status": 200,
+          "sha256": "48b19d13aacdc492e602541a3a9ffc35d51ee2548f754f1aa0749fa8dd40f3b8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "flutter_bootstrap.js",
+          "status": 200,
+          "sha256": "fffff7b7ee84fa14e15f4c1a441e58e98b3157819e59eb1c41376a0746cd05b0",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        },
+        {
+          "file": "onepoint-push-sw.js",
+          "status": 200,
+          "sha256": "e6ee8a86ea1b1218a1507ab4f33d97b03a722eda86a4a27f510410ec67bc7cf8",
+          "cacheControl": "no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "authorizedDomains": [
+    "localhost",
+    "onlyonepoint-lesson.firebaseapp.com",
+    "onlyonepoint-lesson.web.app",
+    "onlyonepoint-lesson-v2.web.app"
+  ],
+  "verification": "Published index, bootstrap, application bundle and push worker hashes match the local release build on both existing sites.",
+  "browserChecks": [
+    {
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    },
+    {
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "ONEPOINT",
+      "url": "https://onlyonepoint-lesson.web.app/",
+      "appRendered": true,
+      "enterValidation": true,
+      "pageErrors": []
+    }
+  ],
+  "version": {
+    "app_name": "onepoint_lesson",
+    "version": "1.2.0",
+    "build_number": "5",
+    "package_name": "onepoint_lesson"
+  },
+  "validation": {
+    "flutterTests": 199,
+    "functionsUnitTests": 32,
+    "securityEmulatorTests": 70,
+    "webStartupAndPushWorkerTests": 9,
+    "flutterAnalyze": "passed",
+    "webBuild": "passed"
+  },
+  "inAppBrowserChecks": [
+    {
+      "scenario": "normal",
+      "rendered": true,
+      "retryAvailable": false,
+      "errors": []
+    },
+    {
+      "scenario": "restricted-inapp",
+      "rendered": true,
+      "retryAvailable": false,
+      "errors": []
+    },
+    {
+      "scenario": "hanging-cache",
+      "rendered": true,
+      "retryAvailable": false,
+      "errors": []
+    },
+    {
+      "scenario": "blocked-bootstrap",
+      "rendered": false,
+      "retryAvailable": true,
+      "errors": []
+    }
+  ],
+  "scope": "Member-wide public lesson feedback, uploader-controlled visibility, linked deletion and continuous vertical feed loading.",
+  "acceptanceLimits": "Mobile/desktop and in-app startup checks use headless Chrome emulation. Production video creation/playback by a signed-in physical device was not performed; real media authorization and metadata operations are covered by isolated emulator tests."
+}

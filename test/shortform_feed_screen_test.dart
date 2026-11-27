@@ -9,6 +9,37 @@ import 'package:onepoint_lesson/widget/video_item_widget.dart';
 
 void main() {
   testWidgets(
+      'automatic feed pagination keeps the currently visible video while adding the next page',
+      (tester) async {
+    final db = FakeFirebaseFirestore();
+    for (var i = 0; i < 22; i++) {
+      await db.doc('public_feed_videos/clip-$i').set({
+        'userId': 'author',
+        'userName': '작성자',
+        'title': '영상 $i',
+        'description': '',
+        'videoUrl': '',
+        'likes': 0,
+        'createdAt': Timestamp.fromMillisecondsSinceEpoch(22000 - i * 1000)
+      });
+    }
+    final service = FeedService(
+        firestore: db,
+        auth: MockFirebaseAuth(
+            mockUser: MockUser(uid: 'viewer'), signedIn: true));
+    await tester.pumpWidget(MaterialApp(
+        theme: ThemeData.dark(),
+        home: ShortformFeedScreen(
+            isActive: false, firestore: db, feedService: service)));
+    await tester.pumpAndSettle();
+    tester.widget<PageView>(find.byType(PageView)).controller!.jumpToPage(18);
+    await tester.pumpAndSettle();
+    expect(find.text('19 / 22'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('shortform-card-clip-18')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
     '숏폼은 작은 9:16 카드로 표시되고 위아래로 넘길 수 있다',
     (tester) async {
       final firestore = FakeFirebaseFirestore();

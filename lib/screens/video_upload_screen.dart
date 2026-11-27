@@ -84,6 +84,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
         await _service.uploadLessonFeedback(
           videoFile: _selectedVideo!,
           lessonId: widget.lessonId!,
+          title: _titleController.text,
           description: _descriptionController.text,
           onProgress: progress,
           onTaskReady: taskReady,
@@ -100,7 +101,9 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isFeedback ? '레슨 피드백 영상을 등록했습니다.' : '숏폼 영상을 등록했습니다.'),
+          content: Text(_isFeedback
+              ? '피드백 영상을 등록했습니다. 공개 피드에서 확인해 보세요.'
+              : '공개 피드에 영상을 등록했습니다.'),
         ),
       );
       _titleController.clear();
@@ -140,6 +143,19 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              const Padding(
+                  padding: EdgeInsets.only(bottom: 20),
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.public, color: Color(0xFFC7F000)),
+                        SizedBox(width: 10),
+                        Expanded(
+                            child: Text(
+                                '전체 공개 · 로그인한 모든 이용자가 영상과 설명을 공개 피드에서 볼 수 있어요.',
+                                style: TextStyle(
+                                    color: Colors.white70, height: 1.5))),
+                      ])),
               InkWell(
                 onTap: _uploading ? null : _pickVideo,
                 borderRadius: BorderRadius.circular(16),
@@ -197,13 +213,14 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              if (!_isFeedback) ...[
+              ...[
                 TextField(
                   controller: _titleController,
                   enabled: !_uploading,
                   maxLength: 120,
                   style: const TextStyle(color: Colors.white),
-                  decoration: _decoration('숏폼 제목', '영상 내용을 짧게 알려 주세요.'),
+                  decoration: _decoration(_isFeedback ? '피드백 제목 (선택)' : '영상 제목',
+                      '공개 피드에 표시할 제목을 적어 주세요.'),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -265,7 +282,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                   icon: Icon(_error == null
                       ? Icons.cloud_upload_rounded
                       : Icons.refresh_rounded),
-                  label: Text(_error == null ? '업로드' : '같은 영상 다시 시도'),
+                  label: Text(_error == null ? '전체 공개로 업로드' : '같은 영상 다시 시도'),
                 ),
             ],
           ),

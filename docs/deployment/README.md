@@ -199,3 +199,56 @@ the badge metadata survives and progress is awarded once. Scheduled end-time,
 participant/coach approval and unpaid test-mode guards remain enforced.
 `2026-11-27-completion-fix.json` and `2026-11-27-hosting.json` record deployment
 verification. Production verification did not complete or edit any user lesson.
+
+## November 27: member-wide feedback video feed
+
+v1.2.0 publishes new lesson feedback into the common video feed for all active,
+completed, signed-in members. The upload screen states that both the video and
+description will be public to members. Playback supports vertical swiping,
+muted autoplay, looping, sound controls and cursor-based automatic loading near
+the end of the current page. Returning to the feed tab refreshes recent uploads.
+
+`registerLessonFeedback` verifies the real uploaded video and lesson membership,
+then atomically creates the participant feedback record, canonical feed record
+and public projection. Both views use one Storage object. The feedback public
+projection contains the uploader name, title, description, creation time and
+likes; it excludes private lesson identifiers, participants and storage paths.
+Raw feedback documents and Storage reads retain participant/admin access.
+Public playback is authorized through `getMediaPlayback` and a 15-minute signed
+URL. A previously issued URL can remain valid until expiry after unpublishing.
+
+Only the uploader can change public visibility. Older private feedback requires
+explicit uploader publication; this release does not publish historical private
+content. A read-only predeployment query found no existing feedback records.
+Moderation hiding is retained across archive/repost operations. Blocking,
+suspension and incomplete profiles prevent public playback authorization.
+Deleting through either video view removes both linked records, their likes
+and the single Storage object. Source-deletion cleanup and projection retries
+re-read current state to avoid republishing removed or archived content.
+
+The video upload shutdown now covers new public feedback as well as standalone
+feed videos. Clients cannot forge public source links or claim the reserved
+`feedback_` feed ID namespace. The Storage emulator test fixture also recursively
+clears nested objects between tests, preventing stale files from interfering
+with independent upload cases.
+
+Deploy only `registerLessonFeedback`, `setFeedbackVisibility`,
+`removeFeedbackFeed`, `projectPublicFeed`, `refreshAuthorFeed`,
+`getMediaPlayback`, `setFeedLiked`, `deleteVideo` and `resolveReport` with
+`tool/deploy-platform.ps1 -OnlyFunctions`, plus the Firestore/Storage rules.
+Existing payment configuration and unpaid lesson completion rules stay in place.
+Receipts are `2026-11-27-public-feedback.json` and
+`2026-11-27-public-feedback-hosting.json`.
+
+Validation: all 199 Flutter tests, 32 Functions unit tests, 70 security/workflow
+emulator tests and nine startup/push-worker tests passed, along with static
+analysis. The six new emulator cases cover actual registration, playback
+authorization, visibility ownership, retries, moderation, deletion and legacy
+private publication. Widget coverage checks the public audience notice,
+uploader controls and preservation of the visible video during automatic paging.
+
+The release web build and published application files match on both existing
+Hosting sites. Headless Chrome checks pass for mobile/desktop login rendering,
+Enter-key validation and four startup scenarios: normal, restricted in-app,
+hanging cache and blocked bootstrap with retry. These emulate browser conditions;
+they do not replace signed-in video playback on a physical phone.
